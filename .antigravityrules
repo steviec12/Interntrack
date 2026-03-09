@@ -9,93 +9,89 @@
 
 ## Tech Stack and Versions
 
-- **Frontend:** React 18+ with TypeScript, built with Vite 5+
-- **UI Library:** Ant Design 5+ for layout, tables, forms, modals, and filters
-- **Drag-and-Drop:** dnd-kit (core + sortable) for Kanban board interactions
-- **Backend:** Python 3.11+ with FastAPI 0.100+
-- **ORM:** SQLAlchemy 2.0+ with Alembic for database migrations
+- **Framework:** Next.js 14+ with App Router and TypeScript
+- **Styling:** TailwindCSS 3+ with custom design tokens
+- **Backend:** Next.js API routes (`app/api/`)
+- **ORM:** Prisma with PostgreSQL
 - **Database:** PostgreSQL 15+
-- **Authentication:** JWT (PyJWT) with bcrypt for password hashing
+- **Authentication:** NextAuth.js with bcrypt for password hashing
+- **Drag-and-Drop:** dnd-kit (core + sortable) for Kanban board interactions
 - **Chrome Extension:** Manifest V3 with TypeScript
-- **Testing:** Pytest (backend), Vitest (frontend)
-- **Package Managers:** npm (frontend), pip (backend)
+- **Testing:** Jest + React Testing Library (frontend), Jest (API routes)
+- **Package Manager:** npm
 
 ## Architecture Overview
 
 ```
 interntrack/
-├── frontend/                   # React + TypeScript + Vite
-│   ├── public/
+├── src/
+│   ├── app/                       # Next.js App Router
+│   │   ├── layout.tsx             # Root layout with providers
+│   │   ├── page.tsx               # Home / Board page
+│   │   ├── globals.css            # TailwindCSS imports + custom CSS vars
+│   │   ├── dashboard/
+│   │   │   └── page.tsx           # Dashboard & analytics page
+│   │   ├── login/
+│   │   │   └── page.tsx           # Login page
+│   │   ├── register/
+│   │   │   └── page.tsx           # Registration page
+│   │   └── api/                   # Next.js API routes (backend)
+│   │       ├── auth/
+│   │       │   ├── [...nextauth]/
+│   │       │   │   └── route.ts   # NextAuth.js handler
+│   │       │   └── register/
+│   │       │       └── route.ts   # User registration endpoint
+│   │       ├── applications/
+│   │       │   ├── route.ts       # GET all / POST new application
+│   │       │   └── [id]/
+│   │       │       └── route.ts   # GET / PUT / DELETE single application
+│   │       ├── reminders/
+│   │       │   └── route.ts       # Reminder CRUD
+│   │       └── analytics/
+│   │           └── route.ts       # Dashboard analytics data
+│   ├── components/                # Reusable UI components
+│   │   ├── Board/                 # Kanban board components
+│   │   ├── Table/                 # Table view components
+│   │   ├── Dashboard/             # Dashboard and analytics components
+│   │   ├── Forms/                 # Application form, rejection modal
+│   │   ├── Layout/                # Nav, sidebar, page wrappers
+│   │   └── common/               # Buttons, badges, filters, inputs
+│   ├── hooks/                     # Custom React hooks
+│   ├── services/                  # API client functions (fetch wrappers)
+│   ├── types/                     # TypeScript type definitions
+│   ├── utils/                     # Helper functions
+│   └── lib/                       # Shared libraries (prisma client, auth config)
+│       ├── prisma.ts              # Prisma client singleton
+│       └── auth.ts                # NextAuth.js configuration
+├── prisma/
+│   ├── schema.prisma              # Prisma schema (models, relations)
+│   └── migrations/                # Database migrations
+├── extension/                     # Chrome Extension (Manifest V3)
 │   ├── src/
-│   │   ├── components/         # Reusable UI components
-│   │   │   ├── Board/          # Kanban board components
-│   │   │   ├── Table/          # Table view components
-│   │   │   ├── Dashboard/      # Dashboard and analytics components
-│   │   │   ├── Forms/          # Application form, rejection modal
-│   │   │   ├── Layout/         # Nav, sidebar, page wrappers
-│   │   │   └── common/         # Buttons, badges, filters, inputs
-│   │   ├── pages/              # Route-level page components
-│   │   │   ├── LoginPage.tsx
-│   │   │   ├── RegisterPage.tsx
-│   │   │   ├── BoardPage.tsx   # Main view (Kanban + Table toggle)
-│   │   │   └── DashboardPage.tsx
-│   │   ├── hooks/              # Custom React hooks
-│   │   ├── services/           # API client functions
-│   │   ├── types/              # TypeScript type definitions
-│   │   ├── utils/              # Helper functions
-│   │   ├── App.tsx             # Root component with routing
-│   │   └── main.tsx            # Entry point
-│   ├── index.html
-│   ├── vite.config.ts
-│   ├── tsconfig.json
-│   └── package.json
-├── backend/                    # FastAPI + SQLAlchemy
-│   ├── app/
-│   │   ├── main.py             # FastAPI app entry point
-│   │   ├── config.py           # Environment and database config
-│   │   ├── models/             # SQLAlchemy models
-│   │   │   ├── user.py
-│   │   │   ├── application.py
-│   │   │   ├── reminder.py
-│   │   │   └── contact.py
-│   │   ├── schemas/            # Pydantic request/response schemas
-│   │   ├── routers/            # API route handlers
-│   │   │   ├── auth.py
-│   │   │   ├── applications.py
-│   │   │   ├── reminders.py
-│   │   │   └── analytics.py
-│   │   ├── services/           # Business logic layer
-│   │   ├── dependencies.py     # Dependency injection (auth, db session)
-│   │   └── utils/              # Helpers (duplicate detection, etc.)
-│   ├── alembic/                # Database migrations
-│   │   ├── versions/
-│   │   └── env.py
-│   ├── tests/                  # Pytest tests
-│   │   ├── test_auth.py
-│   │   ├── test_applications.py
-│   │   ├── test_reminders.py
-│   │   └── test_analytics.py
-│   ├── alembic.ini
-│   ├── requirements.txt
-│   └── .env
-├── extension/                  # Chrome Extension (Manifest V3)
-│   ├── src/
-│   │   ├── popup.tsx           # Extension popup UI
-│   │   ├── background.ts      # Service worker
-│   │   └── content.ts         # Content scripts for job page scraping
+│   │   ├── popup.tsx              # Extension popup UI
+│   │   ├── background.ts          # Service worker
+│   │   └── content.ts             # Content scripts for job page scraping
 │   ├── manifest.json
 │   └── tsconfig.json
-├── .antigravityrules           # This file
+├── public/                        # Static assets
+├── before/                        # Legacy prototype (reference only)
+├── project_memory/                # Architecture comparisons & docs
+├── tailwind.config.ts             # TailwindCSS configuration with theme
+├── next.config.ts                 # Next.js configuration
+├── tsconfig.json
+├── package.json
+├── .env.local                     # Environment variables (not committed)
+├── .antigravityrules              # This file
 ├── .gitignore
 └── README.md
 ```
 
 ## Key Architectural Patterns
 
-- **Frontend:** Component-based architecture. Each feature has its own folder under `components/`. Pages compose components. State is managed with React hooks (useState, useEffect, useContext). API calls are centralized in `services/`.
-- **Backend:** Layered architecture with routers (HTTP handling) → services (business logic) → models (database). Pydantic schemas validate all request/response data. Dependencies are injected via FastAPI's `Depends()`.
-- **API Design:** RESTful. All endpoints prefixed with `/api/v1`. JSON request/response bodies. JWT token sent via Authorization header (`Bearer <token>`).
-- **Database:** Relational model. Foreign keys enforce relationships. Enums for status and type fields. Timestamps on all records.
+- **Frontend:** Component-based architecture using Next.js App Router. Each feature has its own folder under `components/`. Pages live in `app/` using the file-system routing convention. State is managed with React hooks (useState, useEffect, useContext). API calls are centralized in `services/`.
+- **Backend:** Next.js API routes in `app/api/`. Route handlers export HTTP method functions (GET, POST, PUT, DELETE). Business logic lives in service functions imported by route handlers. Prisma handles database access.
+- **API Design:** RESTful. All endpoints under `/api/`. JSON request/response bodies. Authentication via NextAuth.js session cookies.
+- **Database:** Relational model via Prisma. Foreign keys enforce relationships. Enums for status and type fields. Timestamps on all records.
 
 ## Naming Conventions and Coding Standards
 
@@ -104,36 +100,35 @@ interntrack/
 - **Components:** PascalCase function components with default exports
 - **Hooks:** Prefix with `use` (`useApplications.ts`)
 - **Types/Interfaces:** PascalCase with descriptive names (`Application`, `CreateApplicationRequest`)
-- **CSS:** Use Ant Design's built-in styling system. Inline styles only for prototype; prefer Ant Design's `className` and design tokens for production
+- **CSS:** Use TailwindCSS utility classes. Define custom theme tokens in `tailwind.config.ts`. Use `globals.css` for CSS custom properties and base styles.
 - **Props:** Define explicit TypeScript interfaces for all component props
 - **No `any` types.** Always define explicit types.
 
-### Backend (Python/FastAPI)
-- **Files:** snake_case (`application.py`, `auth.py`)
-- **Classes:** PascalCase (`Application`, `UserCreate`)
-- **Functions/Variables:** snake_case (`get_applications`, `current_user`)
+### Backend (TypeScript / Next.js API Routes)
+- **Files:** camelCase for route files (`route.ts`), directory names match REST resources (`applications/`, `auth/`)
+- **Functions:** camelCase (`getApplications`, `createApplication`)
 - **Constants:** UPPER_SNAKE_CASE (`ACCESS_TOKEN_EXPIRE_MINUTES`)
-- **Pydantic models:** PascalCase with verb prefix for request schemas (`CreateApplication`, `UpdateApplication`) and suffix for responses (`ApplicationResponse`)
-- **Router prefixes:** plural nouns (`/applications`, `/reminders`)
-- **All functions must have type hints** for parameters and return values
+- **Prisma models:** PascalCase (`Application`, `User`)
+- **Route handlers:** Export named async functions matching HTTP methods (`GET`, `POST`, `PUT`, `DELETE`)
+- **All functions must have TypeScript types** for parameters and return values
+- **Validation:** Use Zod schemas for all request body validation in API routes
 
 ### General
 - **No magic numbers.** Use named constants.
 - **No commented-out code** in commits.
-- **Docstrings** on all service functions and complex utility functions.
+- **JSDoc comments** on all service functions and complex utility functions.
 - **Error messages** must be user-friendly and never expose internal details.
 
 ## Testing Strategy
 
-### Backend (Pytest)
-- **Unit tests:** Test business logic in `services/` — duplicate detection algorithm, analytics calculations, rejection pattern aggregation
-- **Integration tests:** Test API endpoints with a test database — CRUD operations, auth flows, filtering, edge cases
-- **Auth tests:** Test registration, login, token refresh, protected route access, invalid token handling
-- **Coverage goal:** 80%+ on `services/` and `routers/`
-- **Fixtures:** Use pytest fixtures for test database sessions, authenticated test clients, and sample application data
+### API Routes (Jest)
+- **Unit tests:** Test business logic in service functions — duplicate detection, analytics calculations, rejection pattern aggregation
+- **Integration tests:** Test API route handlers with a test database — CRUD operations, auth flows, filtering, edge cases
+- **Auth tests:** Test registration, login, session handling, protected route access
+- **Coverage goal:** 80%+ on service functions and route handlers
 - **Test database:** Use a separate PostgreSQL test database, reset between test runs
 
-### Frontend (Vitest)
+### Frontend (Jest + React Testing Library)
 - **Component tests:** Verify rendering of KanbanBoard, TableView, ApplicationForm, RejectionModal, Dashboard
 - **Hook tests:** Test custom hooks (useApplications, useAuth) with mocked API responses
 - **Interaction tests:** Test drag-and-drop status changes, form validation, filter toggling
@@ -148,15 +143,15 @@ interntrack/
 After implementing ANY new feature, the following strict verification protocol MUST be executed before concluding the task:
 
 1. **Static Analysis & Build Verification:**
-   - Run `tsc -b` (or `npm run build` which includes it) to ensure zero TypeScript errors.
-   - Run the development server (`npm run dev`) or backend server (`uvicorn`) to ensure the application starts without crashing.
+   - Run `npm run build` to ensure zero TypeScript errors and successful Next.js build.
+   - Run the development server (`npm run dev`) to ensure the application starts without crashing.
 
 2. **Automated Testing:**
    - Write unit/component tests for the new feature (matching the 70%+ frontend / 80%+ backend coverage goal).
-   - Run the test suite (`npm run test` or `pytest`) to verify all new and existing tests pass.
+   - Run the test suite (`npm run test`) to verify all new and existing tests pass.
 
 3. **Manual Validation Context:**
-   - Instead of skipping manual verification, actively use available tools (e.g., cURL, Python scripts, or the browser agent if applicable/permitted) to trigger the newly added code paths.
+   - Instead of skipping manual verification, actively use available tools (e.g., cURL, browser agent) to trigger the newly added code paths.
    - If UI components (like forms, modals, or tables) are built, verify all states:
      - **Empty state / Initial load**
      - **Validation errors** (e.g., submitting empty required fields)
@@ -216,7 +211,7 @@ The interactive prototype is built as a React artifact (`InternTrack_Prototype.j
 - Drag-and-drop: cards can be moved between any columns. Moving to Rejected triggers the reflection modal.
 
 **Table View (toggle from Board)**
-- Ant Design Table component with columns: Company, Role, Status, Type, Season, Date Applied, Deadline
+- Custom table component styled with TailwindCSS with columns: Company, Role, Status, Type, Season, Date Applied, Deadline
 - All columns sortable (click header to toggle asc/desc)
 - Status displayed as colored pill badge
 - Row click opens application edit form
@@ -308,16 +303,16 @@ Types: `feature`, `fix`, `chore`, `docs`, `test`
 Format: `<type>(scope): <short description> (#<issue-number>)`
 
 Examples:
-- `feat(backend): add application CRUD endpoints (#3)`
+- `feat(api): add application CRUD endpoints (#3)`
 - `feat(frontend): build Kanban board with dnd-kit (#5)`
-- `fix(backend): make duplicate check case-insensitive (#7)`
+- `fix(api): make duplicate check case-insensitive (#7)`
 - `chore(infra): set up project scaffolding (#1)`
-- `test(backend): add auth flow integration tests (#2)`
+- `test(api): add auth flow integration tests (#2)`
 - `docs: update README with setup instructions (#1)`
 
 Types: `feat`, `fix`, `chore`, `test`, `docs`, `refactor`, `style`
 
-Scopes: `frontend`, `backend`, `extension`, `infra`
+Scopes: `frontend`, `api`, `extension`, `infra`
 
 Rules:
 - Subject line max 72 characters
@@ -353,81 +348,81 @@ Rules:
 
 ## Patterns to Follow
 
-- DO use Ant Design components (Button, Table, Modal, Form, Select, DatePicker, Card, Input, Badge) for all UI elements — do not build custom replacements
+- DO use TailwindCSS utility classes for all styling — define custom tokens in `tailwind.config.ts`
+- DO use headless UI patterns (HTML `<dialog>`, or Headless UI / Radix) for modals and dropdowns
 - DO use dnd-kit for all drag-and-drop — it is accessible and well-maintained
-- DO use Pydantic models for ALL API request validation and response serialization
-- DO use FastAPI's dependency injection (`Depends()`) for auth and database sessions
-- DO use SQLAlchemy 2.0 style (select statements, not legacy Query API)
-- DO use Alembic for every database schema change — never modify the database manually
+- DO use Zod schemas for ALL API request validation in route handlers
+- DO use Prisma for all database access — never write raw SQL
+- DO use Prisma migrations for every database schema change — never modify the database manually
 - DO return proper HTTP status codes: 201 for creation, 200 for success, 400 for validation errors, 401 for unauthorized, 404 for not found
-- DO validate all user input on both frontend (form validation) and backend (Pydantic)
+- DO validate all user input on both frontend (form validation) and backend (Zod)
 - DO use TypeScript `interface` or `type` for all data shapes
 - DO keep components small and focused — extract sub-components when a file exceeds 150 lines
 - DO use React hooks for state and side effects — no class components
 - DO provide loading states and error states for all async operations
+- DO use Next.js `<Link>` and `useRouter` for navigation — never use plain `<a>` tags for internal links
 
 ## Patterns to Avoid
 
 - DO NOT use Redux or any heavy state management library — React Context + hooks is sufficient for this project
 - DO NOT use `any` type in TypeScript — always define explicit types
-- DO NOT store JWT tokens in localStorage for production (use httpOnly cookies); localStorage is acceptable for MVP/development
-- DO NOT use the legacy SQLAlchemy Query API (e.g., `session.query(...)`) — use 2.0 style `select()`
-- DO NOT write raw SQL — always go through SQLAlchemy ORM
-- DO NOT create API endpoints without corresponding Pydantic schemas
-- DO NOT put business logic in routers — routers handle HTTP, services handle logic
+- DO NOT store secrets in client-side code — use `.env.local` and `NEXT_PUBLIC_` prefix only for public values
+- DO NOT use the Next.js Pages Router — use the App Router exclusively
+- DO NOT write raw SQL — always go through Prisma ORM
+- DO NOT create API endpoints without corresponding Zod validation schemas
+- DO NOT put business logic directly in route handlers — route handlers call service functions
 - DO NOT use `useEffect` for data that can be fetched on component mount with a custom hook
-- DO NOT hardcode colors — reference the color theme constants defined above
-- DO NOT use inline styles in production code — the prototype uses inline styles for convenience, but production should use Ant Design's styling system
-- DO NOT commit `.env` files, database credentials, or JWT secrets to the repository
+- DO NOT hardcode colors — reference the TailwindCSS theme tokens defined in `tailwind.config.ts`
+- DO NOT use inline styles — use TailwindCSS utility classes exclusively
+- DO NOT commit `.env.local` files, database credentials, or auth secrets to the repository
 - DO NOT skip error handling — every API call in the frontend must handle loading, success, and error states
+- DO NOT use Ant Design, Material UI, or any pre-built component library — use TailwindCSS with native HTML elements
 
 ## Dependencies and Libraries to Prefer
 
-### Frontend
-- `antd` — UI components (Table, Modal, Form, Select, DatePicker, Button, Badge, Card, Layout, Menu)
+### Frontend & Backend (unified Node.js)
+- `next` — Full-stack framework (React frontend + API routes)
+- `react` + `react-dom` — UI library
+- `tailwindcss` — Utility-first CSS framework
 - `@dnd-kit/core` and `@dnd-kit/sortable` — Kanban drag-and-drop
-- `axios` — HTTP client for API calls (prefer over fetch for interceptors and error handling)
-- `react-router-dom` — client-side routing
-- `dayjs` — date formatting (already included with Ant Design, do not add moment.js)
-- `recharts` — dashboard charts (lightweight, React-native)
+- `next-auth` — Authentication (session-based with credentials provider)
+- `prisma` + `@prisma/client` — ORM and database client
+- `zod` — Runtime request validation
+- `bcryptjs` — Password hashing
+- `recharts` — Dashboard charts (lightweight, React-native)
+- `dayjs` — Date formatting and manipulation
 
-### Backend
-- `fastapi` — web framework
-- `uvicorn` — ASGI server
-- `sqlalchemy` — ORM
-- `alembic` — migrations
-- `pydantic` — data validation
-- `python-jose[cryptography]` — JWT handling
-- `passlib[bcrypt]` — password hashing
-- `python-dotenv` — environment variable loading
-- `asyncpg` — async PostgreSQL driver
-- `pytest` — testing
-- `httpx` — async test client for FastAPI
+### Testing
+- `jest` — Test runner
+- `@testing-library/react` — Component testing
+- `@testing-library/jest-dom` — DOM matchers
 
 ### DO NOT add these dependencies:
-- `moment.js` — use dayjs instead (smaller, already in Ant Design)
+- `moment.js` — use dayjs instead (smaller)
 - `redux` or `zustand` or `mobx` — not needed for this project scope
-- `styled-components` or `emotion` — use Ant Design styling
-- `express` or any Node.js backend framework — backend is Python/FastAPI
+- `styled-components` or `emotion` — use TailwindCSS
+- `antd` or `@mui/material` — use TailwindCSS with native elements
+- `express` or any separate backend framework — use Next.js API routes
 - `mongoose` or any MongoDB driver — database is PostgreSQL
+- `axios` — use native `fetch` (Next.js extends fetch with caching)
 - Any AI/LLM API libraries — no AI features in this project
 
 ## Security Requirements
 
-- Passwords must be hashed with bcrypt before storing — never store plaintext
-- JWT tokens must have an expiration time (access: 30 minutes, refresh: 7 days)
-- All API endpoints except `/api/v1/auth/register` and `/api/v1/auth/login` must require authentication
-- Users can only access their own data — every query must filter by the authenticated user's ID
-- Input sanitization: Pydantic handles validation; additionally, escape any user input rendered in HTML
-- CORS must be configured to only allow the frontend origin
-- Environment variables (DB credentials, JWT secret) loaded from `.env` — never hardcoded
+- Passwords must be hashed with bcryptjs before storing — never store plaintext
+- Sessions managed by NextAuth.js with secure cookies
+- All API routes except auth endpoints must check for valid session
+- Users can only access their own data — every Prisma query must filter by the authenticated user's ID
+- Input sanitization: Zod handles validation; additionally, escape any user input rendered in HTML
+- Environment variables (DB credentials, NextAuth secret) stored in `.env.local` — never hardcoded
+- Use `NEXT_PUBLIC_` prefix only for values safe to expose to the browser
 
 ## Accessibility Requirements
 
 - All interactive elements must be keyboard accessible
-- Use Ant Design components which include ARIA attributes by default
+- Use semantic HTML elements (`<nav>`, `<main>`, `<header>`, `<dialog>`, `<button>`)
 - Kanban board must support keyboard navigation (dnd-kit provides this)
 - Color is never the only indicator of meaning — always pair with text labels or icons
-- Form inputs must have associated labels
+- Form inputs must have associated `<label>` elements
 - Modals must trap focus and be dismissible with Escape key
 - Minimum color contrast ratio of 4.5:1 for text
