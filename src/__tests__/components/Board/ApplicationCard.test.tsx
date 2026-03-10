@@ -86,4 +86,47 @@ describe("ApplicationCard", () => {
         // Tests edge case rendering "Full-time" tag
         expect(screen.getByText("Full-time")).toBeInTheDocument();
     });
+
+    it("shows urgency indicator for rolling apps in Saved status", () => {
+        const urgentApp: Application = {
+            id: "uuid-urgent",
+            userId: "user-1",
+            company: "Netflix",
+            role: "Backend Engineer",
+            status: "Saved",
+            type: "Internship",
+            isRolling: true,
+        };
+
+        render(
+            <DndContext>
+                <ApplicationCard app={urgentApp} onClick={() => { }} />
+            </DndContext>
+        );
+
+        expect(screen.getByText("Rolling")).toBeInTheDocument();
+        expect(screen.getByText("Apply soon")).toBeInTheDocument();
+    });
+
+    it("does NOT show urgency indicator for rolling apps in non-Saved status", () => {
+        // mockApp has isRolling: true but status: "Interview"
+        render(
+            <DndContext>
+                <ApplicationCard app={mockApp} onClick={() => { }} />
+            </DndContext>
+        );
+
+        expect(screen.getByText("Rolling")).toBeInTheDocument();
+        expect(screen.queryByText("Apply soon")).not.toBeInTheDocument();
+    });
+
+    it("renders deadline badge with formatted date", () => {
+        render(
+            <DndContext>
+                <ApplicationCard app={mockApp} onClick={() => { }} />
+            </DndContext>
+        );
+
+        expect(screen.getByText(/Due/)).toHaveTextContent("Feb 1, 2024");
+    });
 });

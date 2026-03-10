@@ -113,4 +113,45 @@ describe("DuplicateWarningModal", () => {
         // showModal should not have been called
         expect(HTMLDialogElement.prototype.showModal).not.toHaveBeenCalled();
     });
+
+    it("calls dialog.close() when isOpen changes from true to false", () => {
+        vi.mocked(HTMLDialogElement.prototype.showModal).mockClear();
+        vi.mocked(HTMLDialogElement.prototype.close).mockClear();
+
+        const { rerender } = render(
+            <DuplicateWarningModal
+                isOpen={true}
+                existingApp={mockExistingApp}
+                onSaveAnyway={vi.fn()}
+                onViewExisting={vi.fn()}
+                onCancel={vi.fn()}
+            />
+        );
+
+        expect(HTMLDialogElement.prototype.showModal).toHaveBeenCalled();
+
+        // Simulate the dialog being open so the close branch triggers
+        Object.defineProperty(HTMLDialogElement.prototype, 'open', {
+            get: () => true,
+            configurable: true,
+        });
+
+        rerender(
+            <DuplicateWarningModal
+                isOpen={false}
+                existingApp={mockExistingApp}
+                onSaveAnyway={vi.fn()}
+                onViewExisting={vi.fn()}
+                onCancel={vi.fn()}
+            />
+        );
+
+        expect(HTMLDialogElement.prototype.close).toHaveBeenCalled();
+
+        // Clean up
+        Object.defineProperty(HTMLDialogElement.prototype, 'open', {
+            get: () => false,
+            configurable: true,
+        });
+    });
 });

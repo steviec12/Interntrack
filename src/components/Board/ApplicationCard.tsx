@@ -20,6 +20,9 @@ interface ApplicationCardProps {
 export default function ApplicationCard({ app, onClick }: ApplicationCardProps) {
     const style = STATUS_STYLES[app.status] ?? STATUS_STYLES.Saved;
 
+    // Urgency indicator: rolling deadline apps still in Saved status
+    const isUrgent = app.isRolling && app.status === "Saved";
+
     const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
         id: app.id as number | string,
         data: {
@@ -38,7 +41,7 @@ export default function ApplicationCard({ app, onClick }: ApplicationCardProps) 
             {...listeners}
             {...attributes}
             onClick={onClick}
-            className={`bg-surface border rounded-lg p-3.5 shadow-[var(--shadow-card)] transition-all duration-150 cursor-grab active:cursor-grabbing ${isDragging ? "opacity-50 border-primary scale-[1.02] shadow-xl z-50" : "border-border hover:shadow-[var(--shadow-card-hover)]"
+            className={`bg-surface border rounded-lg p-3.5 shadow-[var(--shadow-card)] transition-all duration-150 cursor-grab active:cursor-grabbing ${isUrgent ? "border-l-[3px] border-l-warning" : ""} ${isDragging ? "opacity-50 border-primary scale-[1.02] shadow-xl z-50" : "border-border hover:shadow-[var(--shadow-card-hover)]"
                 }`}
         >
             <p className="text-[14px] font-semibold text-text leading-snug">
@@ -63,6 +66,14 @@ export default function ApplicationCard({ app, onClick }: ApplicationCardProps) 
                 {app.isRolling && (
                     <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-status-interview/[0.13] text-status-interview">
                         Rolling
+                    </span>
+                )}
+
+                {/* Urgency micro-badge for rolling apps still in Saved */}
+                {isUrgent && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-warning/[0.15] text-warning">
+                        <span className="w-1.5 h-1.5 rounded-full bg-warning animate-pulse" />
+                        Apply soon
                     </span>
                 )}
 
