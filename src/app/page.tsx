@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import BoardColumn from "../components/Board/BoardColumn";
 import ApplicationCard from "../components/Board/ApplicationCard";
 import ApplicationTable from "../components/Board/ApplicationTable";
+import RejectionModal from "../components/Forms/RejectionModal";
 
 import {
   DndContext,
@@ -52,6 +53,7 @@ export default function Home() {
   const [typeFilter, setTypeFilter] = useState("All");
   const [seasonFilter, setSeasonFilter] = useState("All");
   const [activeDragId, setActiveDragId] = useState<string | number | null>(null);
+  const [rejectionModalApp, setRejectionModalApp] = useState<Application | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
 
@@ -93,7 +95,13 @@ export default function Home() {
         : app
     ));
 
-    // 2. Background Persistence (PostgreSQL / Prisma)
+    // 2. If dragged to Rejected — show the reflection modal before persisting
+    if (newStatus === "Rejected") {
+      setRejectionModalApp({ ...activeApp, status: newStatus });
+      return; // modal callbacks handle the API call
+    }
+
+    // 3. Background Persistence (PostgreSQL / Prisma)
     try {
       let mappedStatus = newStatus;
       if (newStatus === "Interview" || newStatus === "Phone Screen") {
@@ -102,13 +110,50 @@ export default function Home() {
 
       await applicationService.updateApplication(applicationId as string, { status: mappedStatus });
     } catch (error) {
-      // 3. Rollback if API fails
+      // 4. Rollback if API fails
       toast.error("Failed to update status. Reverting...");
       setApplications(prev => prev.map(app =>
         app.id === applicationId
           ? { ...app, status: activeApp.status, updatedAt: activeApp.updatedAt }
           : app
       ));
+    }
+  };
+
+  const handleRejectionSave = async (appId: string, reason: string, reflection: string) => {
+    try {
+      await applicationService.updateApplication(appId, {
+        status: "Rejected",
+        rejectionReason: reason || null,
+        reflectionNote: reflection || null,
+      } as any);
+      setApplications(prev => prev.map(app =>
+        String(app.id) === appId
+          ? { ...app, status: "Rejected", rejectionReason: reason, reflectionNote: reflection }
+          : app
+      ));
+      toast.success("Rejection note saved.");
+    } catch {
+      toast.error("Failed to save rejection note.");
+    } finally {
+      setRejectionModalApp(null);
+    }
+  };
+
+  const handleRejectionSkip = async () => {
+    if (!rejectionModalApp?.id) { setRejectionModalApp(null); return; }
+    try {
+      await applicationService.updateApplication(String(rejectionModalApp.id), { status: "Rejected" } as any);
+    } catch {
+      // Rollback optimistic update
+      setApplications(prev => prev.map(app =>
+        app.id === rejectionModalApp.id
+          ? { ...app, status: rejectionModalApp.status }
+          : app
+      ));
+      toast.error("Failed to update status.");
+    } finally {
+      setRejectionModalApp(null);
     }
   };
 
@@ -125,6 +170,8 @@ export default function Home() {
           salary: app.salaryRange ?? undefined,
           status: BACKEND_STATUS_TO_FRONTEND[app.status] || app.status,
           type: BACKEND_TYPE_TO_FRONTEND[app.type] || app.type,
+          rejectionReason: app.rejectionReason ?? undefined,
+          reflectionNote: app.reflectionNote ?? undefined,
         })) as unknown as Application[];
 
         setApplications(formatted);
@@ -188,12 +235,29 @@ export default function Home() {
         app={selectedApp}
         isOpen={showForm}
         onClose={() => setShowForm(false)}
-        onSave={handleSave}
+        onSave={(savedApp) => {
+          handleSave(savedApp);
+          // If the saved app is Rejected and has no rejection note yet, prompt the modal
+          const frontendStatus = savedApp.status as string;
+          if (frontendStatus === "Rejected" && !savedApp.rejectionReason) {
+            setRejectionModalApp(savedApp);
+          }
+        }}
         onViewExistingApp={(existingApp) => {
           setSelectedApp(existingApp);
           setShowForm(true);
         }}
       />
+
+      {/* Rejection Reflection Modal */}
+      {rejectionModalApp && (
+        <RejectionModal
+          app={rejectionModalApp}
+          isOpen={true}
+          onSave={handleRejectionSave}
+          onSkip={handleRejectionSkip}
+        />
+      )}
 
       {/* Main Content — below fixed nav */}
       <main className="pt-14">

@@ -15,6 +15,8 @@ export interface Application {
     deadline?: string;
     isRolling?: boolean;
     notes?: string;
+    rejectionReason?: string;
+    reflectionNote?: string;
     createdAt?: string;
     updatedAt?: string;
 }

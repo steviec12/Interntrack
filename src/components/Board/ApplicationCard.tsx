@@ -95,6 +95,20 @@ export default function ApplicationCard({ app, onClick }: ApplicationCardProps) 
                     Applied {new Date(app.dateApplied).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}
                 </p>
             )}
+
+            {app.status === "Rejected" && app.rejectionReason && (
+                <div className="mt-2 pt-2 border-t border-border/50">
+                    <p className="text-[10px] text-status-rejected font-medium truncate">
+                        {app.rejectionReason}
+                    </p>
+                    {app.reflectionNote && (
+                        <p className="text-[10px] text-text-muted mt-0.5 flex items-center gap-1">
+                            <span>📝</span>
+                            <span className="truncate">{app.reflectionNote}</span>
+                        </p>
+                    )}
+                </div>
+            )}
         </div>
     );
 }
