@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import BoardColumn from "../../../components/Board/BoardColumn";
 import type { Application } from "../../../types";
@@ -57,5 +57,17 @@ describe("BoardColumn", () => {
         expect(screen.getByText("Offer")).toBeInTheDocument();
         expect(screen.getByText("0")).toBeInTheDocument();
         expect(screen.queryByText("Tesla")).not.toBeInTheDocument();
+    });
+
+    it("calls onCardClick when a card is clicked", () => {
+        const handleCardClick = vi.fn();
+        render(
+            <DndContext>
+                <BoardColumn title="Applied" applications={mockApps} onCardClick={handleCardClick} />
+            </DndContext>
+        );
+
+        fireEvent.click(screen.getByText("Tesla"));
+        expect(handleCardClick).toHaveBeenCalledWith(mockApps[0]);
     });
 });

@@ -25,14 +25,14 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>5/5</span>
+                <span class='fraction'>6/6</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">85.71% </span>
+                <span class="strong">90% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>12/14</span>
+                <span class='fraction'>18/20</span>
             </div>
         
             
@@ -46,7 +46,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">100% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>5/5</span>
+                <span class='fraction'>6/6</span>
             </div>
         
             
@@ -152,7 +152,18 @@
 <a name='L87'></a><a href='#L87'>87</a>
 <a name='L88'></a><a href='#L88'>88</a>
 <a name='L89'></a><a href='#L89'>89</a>
-<a name='L90'></a><a href='#L90'>90</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L90'></a><a href='#L90'>90</a>
+<a name='L91'></a><a href='#L91'>91</a>
+<a name='L92'></a><a href='#L92'>92</a>
+<a name='L93'></a><a href='#L93'>93</a>
+<a name='L94'></a><a href='#L94'>94</a>
+<a name='L95'></a><a href='#L95'>95</a>
+<a name='L96'></a><a href='#L96'>96</a>
+<a name='L97'></a><a href='#L97'>97</a>
+<a name='L98'></a><a href='#L98'>98</a>
+<a name='L99'></a><a href='#L99'>99</a>
+<a name='L100'></a><a href='#L100'>100</a>
+<a name='L101'></a><a href='#L101'>101</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -172,20 +183,31 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">9x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">9x</span>
+<span class="cline-any cline-yes">14x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">14x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">9x</span>
+<span class="cline-any cline-yes">14x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">9x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">14x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">14x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -263,6 +285,9 @@ interface ApplicationCardProps {
 export default function ApplicationCard({ app, onClick }: ApplicationCardProps) {
     const style = STATUS_STYLES[app.status] ?? <span class="branch-1 cbranch-no" title="branch not covered" >STATUS_STYLES.Saved;</span>
 &nbsp;
+    // Urgency indicator: rolling deadline apps still in Saved status
+    const isUrgent = app.isRolling &amp;&amp; app.status === "Saved";
+&nbsp;
     const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
         id: app.id as number | string,
         data: {
@@ -281,7 +306,7 @@ export default function ApplicationCard({ app, onClick }: ApplicationCardProps) 
             {...listeners}
             {...attributes}
             onClick={onClick}
-            className={`bg-surface border rounded-lg p-3.5 shadow-[var(--shadow-card)] transition-all duration-150 cursor-grab active:cursor-grabbing ${isDragging ? <span class="branch-0 cbranch-no" title="branch not covered" >"opacity-50 border-primary scale-[1.02] shadow-xl z-50" : "</span>border-border hover:shadow-[var(--shadow-card-hover)]"
+            className={`bg-surface border rounded-lg p-3.5 shadow-[var(--shadow-card)] transition-all duration-150 cursor-grab active:cursor-grabbing ${isUrgent ? "border-l-[3px] border-l-warning" : ""} ${isDragging ? <span class="branch-0 cbranch-no" title="branch not covered" >"opacity-50 border-primary scale-[1.02] shadow-xl z-50" : "</span>border-border hover:shadow-[var(--shadow-card-hover)]"
                 }`}
         &gt;
             &lt;p className="text-[14px] font-semibold text-text leading-snug"&gt;
@@ -306,6 +331,14 @@ export default function ApplicationCard({ app, onClick }: ApplicationCardProps) 
                 {app.isRolling &amp;&amp; (
                     &lt;span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-status-interview/[0.13] text-status-interview"&gt;
                         Rolling
+                    &lt;/span&gt;
+                )}
+&nbsp;
+                {/* Urgency micro-badge for rolling apps still in Saved */}
+                {isUrgent &amp;&amp; (
+                    &lt;span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-warning/[0.15] text-warning"&gt;
+                        &lt;span className="w-1.5 h-1.5 rounded-full bg-warning animate-pulse" /&gt;
+                        Apply soon
                     &lt;/span&gt;
                 )}
 &nbsp;
@@ -337,7 +370,7 @@ export default function ApplicationCard({ app, onClick }: ApplicationCardProps) 
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-03-10T06:55:32.856Z
+                at 2026-03-10T07:10:38.990Z
             </div>
         <script src="../../prettify.js"></script>
         <script>
