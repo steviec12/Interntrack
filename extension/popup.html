@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>InternTrack</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <!-- Header -->
+  <header>
+    <h1>InternTrack</h1>
+  </header>
+
+  <!-- Login Prompt (Hidden by default) -->
+  <div id="login-prompt" class="hidden">
+    <p>Please log in to InternTrack to save applications.</p>
+    <a href="http://localhost:3000/login" target="_blank" class="btn btn-primary">Log In</a>
+  </div>
+
+  <!-- Loading State -->
+  <div id="loading-state">
+    <div class="spinner"></div>
+    <p>Checking authentication...</p>
+  </div>
+
+  <!-- Main Form (Hidden until authenticated) -->
+  <form id="application-form" class="hidden">
+    <div id="duplicate-warning" class="hidden alert alert-warning">
+      ⚠️ A similar application already exists!
+    </div>
+    
+    <div id="success-message" class="hidden alert alert-success">
+      ✅ Saved! <a id="view-application-link" href="#" target="_blank">View</a>
+    </div>
+
+    <div id="error-message" class="hidden alert alert-error">
+      ❌ Failed to save. Please try again.
+    </div>
+
+    <div class="form-group">
+      <label for="roleTitle">Role Title *</label>
+      <input type="text" id="roleTitle" name="roleTitle" required placeholder="Software Engineer Intern">
+    </div>
+
+    <div class="form-group">
+      <label for="companyName">Company Name *</label>
+      <input type="text" id="companyName" name="companyName" required placeholder="Google">
+    </div>
+
+    <div class="form-group">
+      <label for="url">Job URL</label>
+      <input type="url" id="url" name="url" placeholder="https://...">
+    </div>
+
+    <div class="form-row">
+      <div class="form-group half">
+        <label for="status">Status</label>
+        <select id="status" name="status">
+          <option value="Saved">Saved</option>
+          <option value="Applied">Applied</option>
+          <option value="Interviewing">Interviewing</option>
+          <option value="Offer">Offer</option>
+          <option value="Rejected">Rejected</option>
+        </select>
+      </div>
+
+      <div class="form-group half">
+        <label for="type">Type</label>
+        <select id="type" name="type">
+          <option value="Internship">Internship</option>
+          <option value="FullTime">Full-time</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="deadline">Deadline</label>
+      <input type="datetime-local" id="deadline" name="deadline">
+    </div>
+
+    <button type="submit" id="save-btn" class="btn btn-primary block">Save Application</button>
+  </form>
+
+  <script src="popup.js"></script>
+</body>
+</html>
