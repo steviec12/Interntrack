@@ -44,9 +44,10 @@ export async function GET(
 
 export async function PUT(
     req: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         const session = await getServerSession(authOptions);
 
         if (!session || !session.user || !session.user.id) {
@@ -54,7 +55,7 @@ export async function PUT(
         }
 
         const existingApp = await prisma.application.findUnique({
-            where: { id: params.id },
+            where: { id },
         });
 
         if (!existingApp) {
@@ -69,7 +70,7 @@ export async function PUT(
         const data = applicationUpdateSchema.parse(body);
 
         const updatedApplication = await prisma.application.update({
-            where: { id: params.id },
+            where: { id },
             data,
         });
 
