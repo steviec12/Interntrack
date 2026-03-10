@@ -98,7 +98,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (response && response.success) {
                 successMessage.classList.remove('hidden');
-                viewLink.href = `${NEXT_PUBLIC_APP_URL}/dashboard`;
+                viewLink.href = `${NEXT_PUBLIC_APP_URL}/`;
                 form.reset();
                 duplicateWarning.classList.add('hidden');
             } else {
