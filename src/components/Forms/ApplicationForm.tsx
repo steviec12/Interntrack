@@ -93,7 +93,7 @@ export default function ApplicationForm({
     return (
         <dialog
             ref={dialogRef}
-            className="w-[520px] max-h-[85vh] overflow-y-auto rounded-xl border-0 bg-surface p-7 shadow-[var(--shadow-modal)] backdrop:bg-black/30"
+            className="m-auto w-[520px] max-h-[85vh] overflow-y-auto rounded-xl border-0 bg-surface p-7 shadow-[var(--shadow-modal)] backdrop:bg-black/30"
         >
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
