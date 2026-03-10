@@ -14,6 +14,8 @@ export const metadata: Metadata = {
     "Keep all your job and internship applications organized in one place. Track status, deadlines, and reflections.",
 };
 
+import { Toaster } from "sonner";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -24,6 +26,7 @@ export default function RootLayout({
       <body className={`${inter.variable} font-sans antialiased`}>
         <Providers>
           {children}
+          <Toaster position="bottom-right" richColors />
         </Providers>
       </body>
     </html>

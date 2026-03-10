@@ -6,7 +6,7 @@ export const ApplicationTypeEnum = z.enum(["Internship", "FullTime"]);
 export const applicationCreateSchema = z.object({
     companyName: z.string().min(1, "Company name is required"),
     roleTitle: z.string().min(1, "Role title is required"),
-    url: z.string().url("Invalid URL format").optional().or(z.literal("")),
+    url: z.string().url("Invalid URL format").optional().nullable().or(z.literal("").nullable()),
     salaryRange: z.string().optional().nullable(),
     location: z.string().optional().nullable(),
     status: ApplicationStatusEnum.default("Saved"),
@@ -23,7 +23,7 @@ export const applicationCreateSchema = z.object({
 export const applicationUpdateSchema = z.object({
     companyName: z.string().min(1, "Company name cannot be empty").optional(),
     roleTitle: z.string().min(1, "Role title cannot be empty").optional(),
-    url: z.string().url("Invalid URL format").optional().or(z.literal("")).nullable(),
+    url: z.string().url("Invalid URL format").optional().nullable().or(z.literal("").nullable()),
     salaryRange: z.string().optional().nullable(),
     location: z.string().optional().nullable(),
     status: ApplicationStatusEnum.optional(),

@@ -28,6 +28,7 @@ export async function POST(req: Request) {
         return NextResponse.json(application, { status: 201 });
     } catch (error) {
         if (error instanceof z.ZodError) {
+            console.error("Zod Validation Error on createApplication payload:", error.flatten().fieldErrors);
             return NextResponse.json(
                 { message: "Validation error", errors: error.flatten().fieldErrors },
                 { status: 400 }

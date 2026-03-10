@@ -79,4 +79,38 @@ describe("Register Page", () => {
             });
         });
     });
+
+    it("shows an error if the registration API fails", async () => {
+        global.fetch = vi.fn().mockResolvedValueOnce({
+            ok: false,
+            json: () => Promise.resolve({ message: "Email already exists" }),
+        });
+
+        render(<RegisterPage />);
+
+        fireEvent.change(screen.getByLabelText(/Email address/i), { target: { value: "test@example.com" } });
+        fireEvent.change(screen.getByLabelText(/^Password$/i), { target: { value: "password123" } });
+        fireEvent.change(screen.getByLabelText(/Confirm Password/i), { target: { value: "password123" } });
+        fireEvent.click(screen.getByRole("button", { name: /Register/i }));
+
+        expect(await screen.findByText("Email already exists")).toBeInTheDocument();
+    });
+
+    it("shows an error if the automatic sign in fails post-registration", async () => {
+        global.fetch = vi.fn().mockResolvedValueOnce({
+            ok: true,
+            json: () => Promise.resolve({ message: "Registered" }),
+        });
+
+        vi.mocked(signIn).mockResolvedValueOnce({ error: "Auto Login Failed", status: 500, ok: false } as any);
+
+        render(<RegisterPage />);
+
+        fireEvent.change(screen.getByLabelText(/Email address/i), { target: { value: "test@example.com" } });
+        fireEvent.change(screen.getByLabelText(/^Password$/i), { target: { value: "password" } });
+        fireEvent.change(screen.getByLabelText(/Confirm Password/i), { target: { value: "password" } });
+        fireEvent.click(screen.getByRole("button", { name: /Register/i }));
+
+        expect(await screen.findByText("Auto Login Failed")).toBeInTheDocument();
+    });
 });
