@@ -61,6 +61,7 @@ export default function ApplicationForm({
     const dialogRef = useRef<HTMLDialogElement>(null);
     const formRef = useRef<HTMLFormElement>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [selectedStatus, setSelectedStatus] = useState<string>(app?.status ?? "Saved");
 
     // Store localized form errors for Zod misses
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -79,6 +80,11 @@ export default function ApplicationForm({
             dialog.close();
         }
     }, [isOpen]);
+
+    // Sync selectedStatus when the app prop changes (e.g., opening a different app)
+    useEffect(() => {
+        setSelectedStatus(app?.status ?? "Saved");
+    }, [app]);
 
     useEffect(() => {
         const dialog = dialogRef.current;
@@ -137,6 +143,8 @@ export default function ApplicationForm({
                 deadline: getNullableString("deadline") ? new Date(fd.get("deadline") as string).toISOString() : null,
                 isRolling: fd.get("isRolling") === "on",
                 notes: getNullableString("notes"),
+                rejectionReason: rawStatus === "Rejected" ? getNullableString("rejectionReason") : null,
+                reflectionNote: rawStatus === "Rejected" ? getNullableString("reflectionNote") : null,
             };
 
             let savedApplication: Application;
@@ -404,6 +412,7 @@ export default function ApplicationForm({
                                 id="status"
                                 name="status"
                                 defaultValue={app?.status ?? "Saved"}
+                                onChange={(e) => setSelectedStatus(e.target.value)}
                                 className="w-full h-9 px-3 text-[13px] text-text bg-surface border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors cursor-pointer"
                             >
                                 {STATUS_OPTIONS.map((s) => (
@@ -519,6 +528,45 @@ export default function ApplicationForm({
                             style={{ minHeight: "70px" }}
                         />
                     </div>
+
+                    {/* Rejection fields — only shown when status is Rejected */}
+                    {selectedStatus === "Rejected" && (
+                        <div className="mt-4 p-4 rounded-lg bg-status-rejected/5 border border-status-rejected/20">
+                            <h3 className="text-xs font-semibold text-status-rejected mb-3">Rejection Details</h3>
+                            <div className="space-y-3">
+                                <div>
+                                    <label htmlFor="rejectionReason" className="block text-xs font-normal text-text-muted mb-1">
+                                        Rejection Reason
+                                    </label>
+                                    <select
+                                        id="rejectionReason"
+                                        name="rejectionReason"
+                                        defaultValue={app?.rejectionReason ?? ""}
+                                        className="w-full h-9 px-3 text-[13px] text-text bg-surface border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors cursor-pointer"
+                                    >
+                                        <option value="">Select a reason (optional)</option>
+                                        {["No Response", "Rejected After Application", "Failed Phone Screen", "Failed Technical Interview", "Failed Final Round", "Ghosted After Interview", "Other"].map(r => (
+                                            <option key={r} value={r}>{r}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label htmlFor="reflectionNote" className="block text-xs font-normal text-text-muted mb-1">
+                                        What did you learn?
+                                    </label>
+                                    <textarea
+                                        id="reflectionNote"
+                                        name="reflectionNote"
+                                        rows={3}
+                                        placeholder="Any takeaways or areas for improvement? (Optional)"
+                                        defaultValue={app?.reflectionNote ?? ""}
+                                        className="w-full px-3 py-2 text-[13px] text-text bg-surface border border-border rounded-md placeholder:text-text-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors resize-y"
+                                        style={{ minHeight: "80px" }}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Footer Actions */}
                     <div className="flex justify-end gap-3 mt-6">
