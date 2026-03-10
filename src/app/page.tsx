@@ -1,30 +1,33 @@
 "use client";
-
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import NavBar from "../components/Layout/NavBar";
 import ApplicationForm from "../components/Forms/ApplicationForm";
-import type { Application } from "../types";
+import type { Application, ApplicationStatus } from "../types";
 import { applicationService } from "../services/applicationService";
 import { toast } from "sonner";
+import BoardColumn from "../components/Board/BoardColumn";
+import ApplicationCard from "../components/Board/ApplicationCard";
 
-/** Status → TailwindCSS color class mapping */
-const STATUS_STYLES: Record<
-  string,
-  { bg: string; text: string }
-> = {
-  Saved: { bg: "bg-status-saved/[0.13]", text: "text-status-saved" },
-  Applied: { bg: "bg-status-applied/[0.13]", text: "text-status-applied" },
-  "Phone Screen": { bg: "bg-status-phone/[0.13]", text: "text-status-phone" },
-  Interview: {
-    bg: "bg-status-interview/[0.13]",
-    text: "text-status-interview",
-  },
-  Offer: { bg: "bg-status-offer/[0.13]", text: "text-status-offer" },
-  Rejected: {
-    bg: "bg-status-rejected/[0.13]",
-    text: "text-status-rejected",
-  },
-};
+import {
+  DndContext,
+  DragOverlay,
+  DragEndEvent,
+  DragStartEvent,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
+
+const COLUMNS = [
+  "Saved",
+  "Applied",
+  "Phone Screen",
+  "Interview",
+  "Offer",
+  "Rejected",
+];
 
 export default function Home() {
   const [showForm, setShowForm] = useState(false);
@@ -33,8 +36,66 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState("Board");
   const [typeFilter, setTypeFilter] = useState("All");
   const [seasonFilter, setSeasonFilter] = useState("All");
+  const [activeDragId, setActiveDragId] = useState<string | number | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
+
+  // Configure drag sensors. 
+  // Required so a quick "click" triggers the edit modal, but a long "hold" triggers a drag.
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5, // 5px movement required to start drag
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveDragId(event.active.id);
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    setActiveDragId(null);
+    const { active, over } = event;
+
+    // If dropped outside a valid column, do nothing
+    if (!over) return;
+
+    const applicationId = active.id;
+    const newStatus = over.id as any;
+
+    // Parse the app payload from the draggable node
+    const activeApp = active.data.current?.app as Application;
+    if (!activeApp || activeApp.status === newStatus) return; // Ignore if dropped in same col
+
+    // 1. Optimistic UI Update (Instant swap)
+    setApplications(prev => prev.map(app =>
+      app.id === applicationId
+        ? { ...app, status: newStatus, updatedAt: new Date().toISOString() }
+        : app
+    ));
+
+    // 2. Background Persistence (PostgreSQL / Prisma)
+    try {
+      let mappedStatus = newStatus;
+      if (newStatus === "Interview" || newStatus === "Phone Screen") {
+        mappedStatus = "Interviewing" as any;
+      }
+
+      await applicationService.updateApplication(applicationId as string, { status: mappedStatus });
+    } catch (error) {
+      // 3. Rollback if API fails
+      toast.error("Failed to update status. Reverting...");
+      setApplications(prev => prev.map(app =>
+        app.id === applicationId
+          ? { ...app, status: activeApp.status, updatedAt: activeApp.updatedAt }
+          : app
+      ));
+    }
+  };
 
   // Fetch initial data from the API securely on mount
   useEffect(() => {
@@ -132,89 +193,43 @@ export default function Home() {
             /* ============================================
                Application Cards — Kanban-style preview
                ============================================ */
-            <div className="space-y-3">
-              {/* Section Header */}
-              <div className="flex items-center justify-between mb-2">
-                <h2 className="text-[18px] font-bold text-text">
-                  Applications
-                </h2>
-                <span className="text-xs font-medium text-text-muted">
-                  {filteredApps.length} total
-                </span>
-              </div>
+            <DndContext
+              sensors={sensors}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+            >
+              <div className="flex gap-4 overflow-x-auto pb-4 h-[calc(100vh-140px)]">
+                {COLUMNS.map((column) => {
+                  const columnApps = filteredApps.filter((app) => app.status === column);
+                  // Sort applications within the column by most recently updated
+                  const sortedApps = [...columnApps].sort((a, b) => {
+                    const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+                    const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+                    return dateB - dateA;
+                  });
 
-              {/* Card Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                {filteredApps.map((app, i) => {
-                  const style = STATUS_STYLES[app.status] ?? STATUS_STYLES.Saved;
                   return (
-                    <div
-                      key={i}
-                      onClick={() => {
+                    <BoardColumn
+                      key={column}
+                      title={column}
+                      applications={sortedApps}
+                      onCardClick={(app) => {
                         setSelectedApp(app);
                         setShowForm(true);
                       }}
-                      className="bg-surface border border-border rounded-lg p-3.5 shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] transition-shadow duration-150 cursor-pointer"
-                    >
-                      {/* Company Name */}
-                      <p className="text-[14px] font-semibold text-text leading-snug">
-                        {app.company}
-                      </p>
-
-                      {/* Role */}
-                      <p className="text-xs text-text-muted mt-1">
-                        {app.role}
-                      </p>
-
-                      {/* Tags Row */}
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {/* Status Pill */}
-                        <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium ${style.bg} ${style.text}`}
-                        >
-                          {app.status}
-                        </span>
-
-                        {/* Season Tag */}
-                        {app.season && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-status-applied/[0.13] text-status-applied">
-                            {app.season}
-                          </span>
-                        )}
-
-                        {/* Rolling Tag */}
-                        {app.isRolling && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-status-interview/[0.13] text-status-interview">
-                            Rolling
-                          </span>
-                        )}
-
-                        {/* Deadline Tag */}
-                        {app.deadline && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-warning/[0.13] text-warning">
-                            Due {new Date(app.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}
-                          </span>
-                        )}
-
-                        {/* Full-time Tag */}
-                        {app.type === "Full-time" && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-status-phone/[0.13] text-status-phone">
-                            Full-time
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Date Applied */}
-                      {app.dateApplied && (
-                        <p className="text-[10px] text-text-muted mt-2">
-                          Applied {new Date(app.dateApplied).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}
-                        </p>
-                      )}
-                    </div>
+                    />
                   );
                 })}
               </div>
-            </div>
+              <DragOverlay dropAnimation={null}>
+                {activeDragId ? (
+                  (() => {
+                    const activeApp = applications.find((app) => app.id === activeDragId);
+                    return activeApp ? <ApplicationCard app={activeApp} onClick={() => { }} /> : null;
+                  })()
+                ) : null}
+              </DragOverlay>
+            </DndContext>
           )}
         </div>
       </main>
