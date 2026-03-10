@@ -1,5 +1,8 @@
 "use client";
 
+import { useSession, signOut } from "next-auth/react";
+import Link from "next/link";
+
 interface NavBarProps {
     activeTab: string;
     onTabChange: (tab: string) => void;
@@ -29,6 +32,8 @@ export default function NavBar({
     onSeasonFilterChange,
     onAddClick,
 }: NavBarProps) {
+    const { data: session, status } = useSession();
+
     return (
         <header className="fixed top-0 left-0 right-0 z-50 h-14 bg-surface border-b border-border shadow-[var(--shadow-sm)]">
             <div className="h-full mx-auto max-w-full px-6 flex items-center justify-between">
@@ -87,18 +92,45 @@ export default function NavBar({
                         ))}
                     </select>
 
-                    {/* Add Application Button */}
-                    <button
-                        onClick={onAddClick}
-                        className="h-8 px-4 text-[13px] font-semibold text-white bg-primary hover:bg-primary-hover rounded-md transition-colors shadow-sm cursor-pointer"
-                    >
-                        + Add Application
-                    </button>
+                    {status === "authenticated" ? (
+                        <>
+                            {/* Add Application Button */}
+                            <button
+                                onClick={onAddClick}
+                                className="h-8 px-4 text-[13px] font-semibold text-white bg-primary hover:bg-primary-hover rounded-md transition-colors shadow-sm cursor-pointer"
+                            >
+                                + Add Application
+                            </button>
 
-                    {/* User Avatar */}
-                    <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white text-[12px] font-semibold select-none">
-                        ST
-                    </div>
+                            {/* User Avatar & Logout */}
+                            <div className="flex items-center gap-3 ml-2">
+                                <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white text-[12px] font-semibold select-none">
+                                    {session.user?.email?.charAt(0).toUpperCase() || "U"}
+                                </div>
+                                <button
+                                    onClick={() => signOut()}
+                                    className="text-[13px] font-medium text-text-muted hover:text-text transition-colors cursor-pointer"
+                                >
+                                    Log out
+                                </button>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="flex items-center gap-3 ml-2">
+                            <Link
+                                href="/login"
+                                className="text-[13px] font-medium text-text-muted hover:text-text transition-colors"
+                            >
+                                Log in
+                            </Link>
+                            <Link
+                                href="/register"
+                                className="h-8 px-4 inline-flex items-center text-[13px] font-semibold text-white bg-primary hover:bg-primary-hover rounded-md transition-colors shadow-sm"
+                            >
+                                Register
+                            </Link>
+                        </div>
+                    )}
                 </div>
             </div>
         </header>
