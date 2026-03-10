@@ -8,12 +8,14 @@ import type {
     ApplicationStatus,
     ApplicationType,
 } from "../../types";
+import DuplicateWarningModal from "./DuplicateWarningModal";
 
 interface ApplicationFormProps {
     app: Application | null;
     isOpen: boolean;
     onClose: () => void;
     onSave: (app: Application) => void;
+    onViewExistingApp?: (app: Application) => void;
 }
 
 const STATUS_OPTIONS: ApplicationStatus[] = [
@@ -54,6 +56,7 @@ export default function ApplicationForm({
     isOpen,
     onClose,
     onSave,
+    onViewExistingApp,
 }: ApplicationFormProps) {
     const dialogRef = useRef<HTMLDialogElement>(null);
     const formRef = useRef<HTMLFormElement>(null);
@@ -61,6 +64,11 @@ export default function ApplicationForm({
 
     // Store localized form errors for Zod misses
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+    // Duplicate detection state
+    const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+    const [duplicateExistingApp, setDuplicateExistingApp] = useState<any>(null);
+    const [pendingPayload, setPendingPayload] = useState<any>(null);
 
     useEffect(() => {
         const dialog = dialogRef.current;
@@ -152,7 +160,20 @@ export default function ApplicationForm({
                 toast.success("Application updated successfully!");
 
             } else {
-                // We are creating new
+                // Duplicate check before creating (only for new applications)
+                const duplicateResult = await applicationService.checkDuplicate(payload.companyName, payload.roleTitle);
+
+                if (duplicateResult.isDuplicate && duplicateResult.existingApplication) {
+                    // Store the payload and show the duplicate warning modal
+                    setPendingPayload(payload);
+                    setDuplicateExistingApp(duplicateResult.existingApplication);
+                    setShowDuplicateModal(true);
+                    setIsSubmitting(false);
+                    return; // Stop here — user will choose an action from the modal
+                }
+
+
+                // No duplicate — proceed with creation
                 const serverResponse = await applicationService.createApplication(payload as CreateApplicationData);
 
                 savedApplication = {
@@ -182,207 +203,210 @@ export default function ApplicationForm({
         onClose();
     };
 
+    // --- Duplicate modal handlers ---
+    const handleSaveAnyway = async () => {
+        if (!pendingPayload) return;
+        setShowDuplicateModal(false);
+        setIsSubmitting(true);
+
+        try {
+            const serverResponse = await applicationService.createApplication(pendingPayload as CreateApplicationData);
+
+            const savedApplication = {
+                ...pendingPayload,
+                company: serverResponse.companyName,
+                role: serverResponse.roleTitle,
+                salary: serverResponse.salaryRange ?? undefined,
+                id: serverResponse.id,
+            } as any;
+
+            toast.success("Application created successfully!");
+            onSave(savedApplication);
+            formRef.current?.reset();
+        } catch (error: any) {
+            toast.error(error.message || "Failed to save application");
+        } finally {
+            setIsSubmitting(false);
+            setPendingPayload(null);
+            setDuplicateExistingApp(null);
+        }
+    };
+
+    const handleViewExisting = () => {
+        setShowDuplicateModal(false);
+        setPendingPayload(null);
+
+        if (duplicateExistingApp && onViewExistingApp) {
+            // Convert backend shape to frontend shape for the parent
+            const frontendApp = {
+                ...duplicateExistingApp,
+                company: duplicateExistingApp.companyName,
+                role: duplicateExistingApp.roleTitle,
+                salary: duplicateExistingApp.salaryRange ?? undefined,
+            } as Application;
+            onClose();
+            onViewExistingApp(frontendApp);
+        }
+
+        setDuplicateExistingApp(null);
+    };
+
+    const handleDuplicateCancel = () => {
+        setShowDuplicateModal(false);
+        setPendingPayload(null);
+        setDuplicateExistingApp(null);
+    };
+
     const today = new Date().toISOString().split("T")[0];
 
     return (
-        <dialog
-            ref={dialogRef}
-            className="m-auto w-[520px] max-h-[85vh] overflow-y-auto rounded-xl border-0 bg-surface p-7 shadow-[var(--shadow-modal)] backdrop:bg-black/30"
-        >
-            {/* Header */}
-            <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-bold text-text">
-                    {app ? "Edit Application" : "Add Application"}
-                </h2>
-                <button
-                    type="button"
-                    onClick={handleCancel}
-                    className="w-7 h-7 flex items-center justify-center rounded-md text-text-muted hover:bg-primary-light hover:text-text transition-colors cursor-pointer"
-                    aria-label="Close"
-                >
-                    ✕
-                </button>
-            </div>
-
-            <form ref={formRef} onSubmit={handleSubmit}>
-                {/* Core Fields — 2-column grid */}
-                <div className="grid grid-cols-2 gap-3.5">
-                    {/* Company Name */}
-                    <div>
-                        <label
-                            htmlFor="company"
-                            className={`block text-xs font-normal mb-1 ${formErrors.company ? "text-danger" : "text-text-muted"}`}
-                        >
-                            {formErrors.company ? formErrors.company : "Company Name"} {<span className="text-danger">*</span>}
-                        </label>
-                        <input
-                            id="company"
-                            name="company"
-                            type="text"
-                            required
-                            placeholder="e.g. Google"
-                            defaultValue={app?.company ?? ""}
-                            className={`w-full h-9 px-3 text-[13px] text-text bg-surface border rounded-md placeholder:text-text-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors ${formErrors.company ? "border-danger" : "border-border focus:border-primary"}`}
-                        />
-                    </div>
-
-                    {/* Role Title */}
-                    <div>
-                        <label
-                            htmlFor="role"
-                            className={`block text-xs font-normal mb-1 ${formErrors.role ? "text-danger" : "text-text-muted"}`}
-                        >
-                            {formErrors.role ? formErrors.role : "Role Title"} {<span className="text-danger">*</span>}
-                        </label>
-                        <input
-                            id="role"
-                            name="role"
-                            type="text"
-                            required
-                            placeholder="e.g. SWE Intern"
-                            defaultValue={app?.role ?? ""}
-                            className={`w-full h-9 px-3 text-[13px] text-text bg-surface border rounded-md placeholder:text-text-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors ${formErrors.role ? "border-danger" : "border-border focus:border-primary"}`}
-                        />
-                    </div>
-                </div>
-
-                {/* URL — full width */}
-                <div className="mt-3.5">
-                    <label
-                        htmlFor="url"
-                        className="block text-xs font-normal text-text-muted mb-1"
+        <>
+            <dialog
+                ref={dialogRef}
+                className="m-auto w-[520px] max-h-[85vh] overflow-y-auto rounded-xl border-0 bg-surface p-7 shadow-[var(--shadow-modal)] backdrop:bg-black/30"
+            >
+                {/* Header */}
+                <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-lg font-bold text-text">
+                        {app ? "Edit Application" : "Add Application"}
+                    </h2>
+                    <button
+                        type="button"
+                        onClick={handleCancel}
+                        className="w-7 h-7 flex items-center justify-center rounded-md text-text-muted hover:bg-primary-light hover:text-text transition-colors cursor-pointer"
+                        aria-label="Close"
                     >
-                        Job URL
-                    </label>
-                    <input
-                        id="url"
-                        name="url"
-                        type="url"
-                        placeholder="https://..."
-                        defaultValue={app?.url ?? ""}
-                        className="w-full h-9 px-3 text-[13px] text-text bg-surface border border-border rounded-md placeholder:text-text-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
-                    />
+                        ✕
+                    </button>
                 </div>
 
-                {/* Location + Salary */}
-                <div className="grid grid-cols-2 gap-3.5 mt-3.5">
-                    <div>
-                        <label
-                            htmlFor="location"
-                            className="block text-xs font-normal text-text-muted mb-1"
-                        >
-                            Location
-                        </label>
-                        <input
-                            id="location"
-                            name="location"
-                            type="text"
-                            placeholder="e.g. San Francisco, CA"
-                            defaultValue={app?.location ?? ""}
-                            className="w-full h-9 px-3 text-[13px] text-text bg-surface border border-border rounded-md placeholder:text-text-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
-                        />
-                    </div>
-                    <div>
-                        <label
-                            htmlFor="salary"
-                            className="block text-xs font-normal text-text-muted mb-1"
-                        >
-                            Salary / Pay
-                        </label>
-                        <input
-                            id="salary"
-                            name="salary"
-                            type="text"
-                            placeholder="e.g. $45/hr or $120k"
-                            defaultValue={app?.salary ?? ""}
-                            className="w-full h-9 px-3 text-[13px] text-text bg-surface border border-border rounded-md placeholder:text-text-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
-                        />
-                    </div>
-                </div>
-
-                {/* Date Applied + Status */}
-                <div className="grid grid-cols-2 gap-3.5 mt-3.5">
-                    <div>
-                        <label
-                            htmlFor="dateApplied"
-                            className="block text-xs font-normal text-text-muted mb-1"
-                        >
-                            Date Applied
-                        </label>
-                        <input
-                            id="dateApplied"
-                            name="dateApplied"
-                            type="date"
-                            defaultValue={app?.dateApplied ?? today}
-                            className="w-full h-9 px-3 text-[13px] text-text bg-surface border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
-                        />
-                    </div>
-                    <div>
-                        <label
-                            htmlFor="status"
-                            className="block text-xs font-normal text-text-muted mb-1"
-                        >
-                            Status
-                        </label>
-                        <select
-                            id="status"
-                            name="status"
-                            defaultValue={app?.status ?? "Saved"}
-                            className="w-full h-9 px-3 text-[13px] text-text bg-surface border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors cursor-pointer"
-                        >
-                            {STATUS_OPTIONS.map((s) => (
-                                <option key={s} value={s}>
-                                    {s}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-                </div>
-
-                {/* ======================================
-            Internship Details Section
-            ====================================== */}
-                <div className="mt-5 p-4 rounded-lg bg-primary-light/40 border border-primary/10">
-                    <h3 className="text-xs font-semibold text-primary mb-3">
-                        Internship Details
-                    </h3>
-
+                <form ref={formRef} onSubmit={handleSubmit}>
+                    {/* Core Fields — 2-column grid */}
                     <div className="grid grid-cols-2 gap-3.5">
+                        {/* Company Name */}
                         <div>
                             <label
-                                htmlFor="type"
+                                htmlFor="company"
+                                className={`block text-xs font-normal mb-1 ${formErrors.company ? "text-danger" : "text-text-muted"}`}
+                            >
+                                {formErrors.company ? formErrors.company : "Company Name"} {<span className="text-danger">*</span>}
+                            </label>
+                            <input
+                                id="company"
+                                name="company"
+                                type="text"
+                                required
+                                placeholder="e.g. Google"
+                                defaultValue={app?.company ?? ""}
+                                className={`w-full h-9 px-3 text-[13px] text-text bg-surface border rounded-md placeholder:text-text-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors ${formErrors.company ? "border-danger" : "border-border focus:border-primary"}`}
+                            />
+                        </div>
+
+                        {/* Role Title */}
+                        <div>
+                            <label
+                                htmlFor="role"
+                                className={`block text-xs font-normal mb-1 ${formErrors.role ? "text-danger" : "text-text-muted"}`}
+                            >
+                                {formErrors.role ? formErrors.role : "Role Title"} {<span className="text-danger">*</span>}
+                            </label>
+                            <input
+                                id="role"
+                                name="role"
+                                type="text"
+                                required
+                                placeholder="e.g. SWE Intern"
+                                defaultValue={app?.role ?? ""}
+                                className={`w-full h-9 px-3 text-[13px] text-text bg-surface border rounded-md placeholder:text-text-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors ${formErrors.role ? "border-danger" : "border-border focus:border-primary"}`}
+                            />
+                        </div>
+                    </div>
+
+                    {/* URL — full width */}
+                    <div className="mt-3.5">
+                        <label
+                            htmlFor="url"
+                            className="block text-xs font-normal text-text-muted mb-1"
+                        >
+                            Job URL
+                        </label>
+                        <input
+                            id="url"
+                            name="url"
+                            type="url"
+                            placeholder="https://..."
+                            defaultValue={app?.url ?? ""}
+                            className="w-full h-9 px-3 text-[13px] text-text bg-surface border border-border rounded-md placeholder:text-text-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+                        />
+                    </div>
+
+                    {/* Location + Salary */}
+                    <div className="grid grid-cols-2 gap-3.5 mt-3.5">
+                        <div>
+                            <label
+                                htmlFor="location"
                                 className="block text-xs font-normal text-text-muted mb-1"
                             >
-                                Type
+                                Location
                             </label>
-                            <select
-                                id="type"
-                                name="type"
-                                defaultValue={app?.type ?? "Internship"}
-                                className="w-full h-9 px-3 text-[13px] text-text bg-surface border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors cursor-pointer"
-                            >
-                                {TYPE_OPTIONS.map((t) => (
-                                    <option key={t} value={t}>
-                                        {t}
-                                    </option>
-                                ))}
-                            </select>
+                            <input
+                                id="location"
+                                name="location"
+                                type="text"
+                                placeholder="e.g. San Francisco, CA"
+                                defaultValue={app?.location ?? ""}
+                                className="w-full h-9 px-3 text-[13px] text-text bg-surface border border-border rounded-md placeholder:text-text-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+                            />
                         </div>
                         <div>
                             <label
-                                htmlFor="season"
+                                htmlFor="salary"
                                 className="block text-xs font-normal text-text-muted mb-1"
                             >
-                                Season
+                                Salary / Pay
+                            </label>
+                            <input
+                                id="salary"
+                                name="salary"
+                                type="text"
+                                placeholder="e.g. $45/hr or $120k"
+                                defaultValue={app?.salary ?? ""}
+                                className="w-full h-9 px-3 text-[13px] text-text bg-surface border border-border rounded-md placeholder:text-text-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Date Applied + Status */}
+                    <div className="grid grid-cols-2 gap-3.5 mt-3.5">
+                        <div>
+                            <label
+                                htmlFor="dateApplied"
+                                className="block text-xs font-normal text-text-muted mb-1"
+                            >
+                                Date Applied
+                            </label>
+                            <input
+                                id="dateApplied"
+                                name="dateApplied"
+                                type="date"
+                                defaultValue={app?.dateApplied ?? today}
+                                className="w-full h-9 px-3 text-[13px] text-text bg-surface border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+                            />
+                        </div>
+                        <div>
+                            <label
+                                htmlFor="status"
+                                className="block text-xs font-normal text-text-muted mb-1"
+                            >
+                                Status
                             </label>
                             <select
-                                id="season"
-                                name="season"
-                                defaultValue={app?.season ?? ""}
+                                id="status"
+                                name="status"
+                                defaultValue={app?.status ?? "Saved"}
                                 className="w-full h-9 px-3 text-[13px] text-text bg-surface border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors cursor-pointer"
                             >
-                                <option value="">Select...</option>
-                                {SEASON_OPTIONS.map((s) => (
+                                {STATUS_OPTIONS.map((s) => (
                                     <option key={s} value={s}>
                                         {s}
                                     </option>
@@ -391,78 +415,142 @@ export default function ApplicationForm({
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3.5 mt-3.5 items-center">
-                        <div>
-                            <label
-                                htmlFor="deadline"
-                                className="block text-xs font-normal text-text-muted mb-1"
-                            >
-                                Application Deadline
-                            </label>
-                            <input
-                                id="deadline"
-                                name="deadline"
-                                type="date"
-                                defaultValue={app?.deadline ?? ""}
-                                className="w-full h-9 px-3 text-[13px] text-text bg-surface border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
-                            />
+                    {/* ======================================
+            Internship Details Section
+            ====================================== */}
+                    <div className="mt-5 p-4 rounded-lg bg-primary-light/40 border border-primary/10">
+                        <h3 className="text-xs font-semibold text-primary mb-3">
+                            Internship Details
+                        </h3>
+
+                        <div className="grid grid-cols-2 gap-3.5">
+                            <div>
+                                <label
+                                    htmlFor="type"
+                                    className="block text-xs font-normal text-text-muted mb-1"
+                                >
+                                    Type
+                                </label>
+                                <select
+                                    id="type"
+                                    name="type"
+                                    defaultValue={app?.type ?? "Internship"}
+                                    className="w-full h-9 px-3 text-[13px] text-text bg-surface border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors cursor-pointer"
+                                >
+                                    {TYPE_OPTIONS.map((t) => (
+                                        <option key={t} value={t}>
+                                            {t}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label
+                                    htmlFor="season"
+                                    className="block text-xs font-normal text-text-muted mb-1"
+                                >
+                                    Season
+                                </label>
+                                <select
+                                    id="season"
+                                    name="season"
+                                    defaultValue={app?.season ?? ""}
+                                    className="w-full h-9 px-3 text-[13px] text-text bg-surface border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors cursor-pointer"
+                                >
+                                    <option value="">Select...</option>
+                                    {SEASON_OPTIONS.map((s) => (
+                                        <option key={s} value={s}>
+                                            {s}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
-                        <div className="flex items-center gap-2 pt-4">
-                            <input
-                                id="isRolling"
-                                name="isRolling"
-                                type="checkbox"
-                                defaultChecked={app?.isRolling ?? false}
-                                className="h-4 w-4 rounded border-border accent-status-interview cursor-pointer"
-                            />
-                            <label
-                                htmlFor="isRolling"
-                                className="text-xs font-medium text-text cursor-pointer"
-                            >
-                                Rolling deadline — apply early
-                            </label>
+
+                        <div className="grid grid-cols-2 gap-3.5 mt-3.5 items-center">
+                            <div>
+                                <label
+                                    htmlFor="deadline"
+                                    className="block text-xs font-normal text-text-muted mb-1"
+                                >
+                                    Application Deadline
+                                </label>
+                                <input
+                                    id="deadline"
+                                    name="deadline"
+                                    type="date"
+                                    defaultValue={app?.deadline ?? ""}
+                                    className="w-full h-9 px-3 text-[13px] text-text bg-surface border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+                                />
+                            </div>
+                            <div className="flex items-center gap-2 pt-4">
+                                <input
+                                    id="isRolling"
+                                    name="isRolling"
+                                    type="checkbox"
+                                    defaultChecked={app?.isRolling ?? false}
+                                    className="h-4 w-4 rounded border-border accent-status-interview cursor-pointer"
+                                />
+                                <label
+                                    htmlFor="isRolling"
+                                    className="text-xs font-medium text-text cursor-pointer"
+                                >
+                                    Rolling deadline — apply early
+                                </label>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                {/* Notes */}
-                <div className="mt-3.5">
-                    <label
-                        htmlFor="notes"
-                        className="block text-xs font-normal text-text-muted mb-1"
-                    >
-                        Notes
-                    </label>
-                    <textarea
-                        id="notes"
-                        name="notes"
-                        rows={3}
-                        placeholder="Any notes about this application..."
-                        defaultValue={app?.notes ?? ""}
-                        className="w-full px-3 py-2 text-[13px] text-text bg-surface border border-border rounded-md placeholder:text-text-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors resize-y"
-                        style={{ minHeight: "70px" }}
-                    />
-                </div>
+                    {/* Notes */}
+                    <div className="mt-3.5">
+                        <label
+                            htmlFor="notes"
+                            className="block text-xs font-normal text-text-muted mb-1"
+                        >
+                            Notes
+                        </label>
+                        <textarea
+                            id="notes"
+                            name="notes"
+                            rows={3}
+                            placeholder="Any notes about this application..."
+                            defaultValue={app?.notes ?? ""}
+                            className="w-full px-3 py-2 text-[13px] text-text bg-surface border border-border rounded-md placeholder:text-text-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors resize-y"
+                            style={{ minHeight: "70px" }}
+                        />
+                    </div>
 
-                {/* Footer Actions */}
-                <div className="flex justify-end gap-3 mt-6">
-                    <button
-                        type="button"
-                        onClick={handleCancel}
-                        disabled={isSubmitting}
-                        className="h-9 px-4 text-[13px] font-medium text-text bg-surface border border-border rounded-md hover:bg-background transition-colors cursor-pointer disabled:opacity-50"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        type="submit"
-                        disabled={isSubmitting}
-                        className="h-9 px-5 text-[13px] font-semibold text-white bg-primary hover:bg-primary-hover rounded-md transition-colors cursor-pointer disabled:opacity-50"
-                    >
-                        {isSubmitting ? "Saving..." : app ? "Save Changes" : "Add Application"}
-                    </button>
-                </div>
-            </form>
-        </dialog>
+                    {/* Footer Actions */}
+                    <div className="flex justify-end gap-3 mt-6">
+                        <button
+                            type="button"
+                            onClick={handleCancel}
+                            disabled={isSubmitting}
+                            className="h-9 px-4 text-[13px] font-medium text-text bg-surface border border-border rounded-md hover:bg-background transition-colors cursor-pointer disabled:opacity-50"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={isSubmitting}
+                            className="h-9 px-5 text-[13px] font-semibold text-white bg-primary hover:bg-primary-hover rounded-md transition-colors cursor-pointer disabled:opacity-50"
+                        >
+                            {isSubmitting ? "Saving..." : app ? "Save Changes" : "Add Application"}
+                        </button>
+                    </div>
+                </form>
+            </dialog>
+
+            {/* Duplicate Warning Modal */}
+            {duplicateExistingApp && (
+                <DuplicateWarningModal
+                    isOpen={showDuplicateModal}
+                    existingApp={duplicateExistingApp}
+                    onSaveAnyway={handleSaveAnyway}
+                    onViewExisting={handleViewExisting}
+                    onCancel={handleDuplicateCancel}
+                />
+            )}
+        </>
     );
 }
