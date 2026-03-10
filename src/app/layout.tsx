@@ -16,6 +16,8 @@ export const metadata: Metadata = {
 
 import { Toaster } from "sonner";
 
+import { AntdRegistry } from "@ant-design/nextjs-registry";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -24,10 +26,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.variable} font-sans antialiased`}>
-        <Providers>
-          {children}
-          <Toaster position="bottom-right" richColors />
-        </Providers>
+        <AntdRegistry>
+          <Providers>
+            {children}
+            <Toaster position="bottom-right" richColors />
+          </Providers>
+        </AntdRegistry>
       </body>
     </html>
   );

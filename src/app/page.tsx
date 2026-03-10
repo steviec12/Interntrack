@@ -7,6 +7,7 @@ import { applicationService } from "../services/applicationService";
 import { toast } from "sonner";
 import BoardColumn from "../components/Board/BoardColumn";
 import ApplicationCard from "../components/Board/ApplicationCard";
+import ApplicationTable from "../components/Board/ApplicationTable";
 
 import {
   DndContext,
@@ -28,6 +29,20 @@ const COLUMNS = [
   "Offer",
   "Rejected",
 ];
+
+// Reverse map: convert Prisma/backend enum values back to frontend display labels
+const BACKEND_STATUS_TO_FRONTEND: Record<string, string> = {
+  Saved: "Saved",
+  Applied: "Applied",
+  Interviewing: "Interview",
+  Offer: "Offer",
+  Rejected: "Rejected",
+};
+
+const BACKEND_TYPE_TO_FRONTEND: Record<string, string> = {
+  Internship: "Internship",
+  FullTime: "Full-time",
+};
 
 export default function Home() {
   const [showForm, setShowForm] = useState(false);
@@ -108,6 +123,8 @@ export default function Home() {
           company: app.companyName,
           role: app.roleTitle,
           salary: app.salaryRange ?? undefined,
+          status: BACKEND_STATUS_TO_FRONTEND[app.status] || app.status,
+          type: BACKEND_TYPE_TO_FRONTEND[app.type] || app.type,
         })) as unknown as Application[];
 
         setApplications(formatted);
@@ -121,16 +138,23 @@ export default function Home() {
   }, []);
 
   const handleSave = (app: Application) => {
+    // Reverse-map backend enum values to frontend display labels
+    const mappedApp = {
+      ...app,
+      status: BACKEND_STATUS_TO_FRONTEND[app.status] || app.status,
+      type: BACKEND_TYPE_TO_FRONTEND[app.type] || app.type,
+    } as Application;
+
     setApplications((prev) => {
       // If the app already exists in state via its ID, swap it cleanly 
-      const existingIdx = prev.findIndex((p) => p.id === app.id);
+      const existingIdx = prev.findIndex((p) => p.id === mappedApp.id);
       if (existingIdx !== -1) {
         const newArray = [...prev];
-        newArray[existingIdx] = app;
+        newArray[existingIdx] = mappedApp;
         return newArray;
       }
       // If it doesn't exist, it's a new Create action, append it!
-      return [app, ...prev]; // Prepend for fresh creations at top
+      return [mappedApp, ...prev]; // Prepend for fresh creations at top
     });
     setShowForm(false);
   };
@@ -190,46 +214,71 @@ export default function Home() {
               </button>
             </div>
           ) : (
-            /* ============================================
-               Application Cards — Kanban-style preview
-               ============================================ */
-            <DndContext
-              sensors={sensors}
-              onDragStart={handleDragStart}
-              onDragEnd={handleDragEnd}
-            >
-              <div className="flex gap-4 overflow-x-auto pb-4 h-[calc(100vh-140px)]">
-                {COLUMNS.map((column) => {
-                  const columnApps = filteredApps.filter((app) => app.status === column);
-                  // Sort applications within the column by most recently updated
-                  const sortedApps = [...columnApps].sort((a, b) => {
-                    const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
-                    const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
-                    return dateB - dateA;
-                  });
+            <>
+              {/* Board View — always mounted, hidden via CSS when inactive */}
+              <div style={{ display: activeTab === "Board" ? "block" : "none" }}>
+                <DndContext
+                  sensors={sensors}
+                  onDragStart={handleDragStart}
+                  onDragEnd={handleDragEnd}
+                >
+                  <div className="flex gap-4 overflow-x-auto pb-4 h-[calc(100vh-140px)]">
+                    {COLUMNS.map((column) => {
+                      const columnApps = filteredApps.filter((app) => app.status === column);
+                      const sortedApps = [...columnApps].sort((a, b) => {
+                        const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+                        const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+                        return dateB - dateA;
+                      });
 
-                  return (
-                    <BoardColumn
-                      key={column}
-                      title={column}
-                      applications={sortedApps}
-                      onCardClick={(app) => {
-                        setSelectedApp(app);
-                        setShowForm(true);
-                      }}
-                    />
-                  );
-                })}
+                      return (
+                        <BoardColumn
+                          key={column}
+                          title={column}
+                          applications={sortedApps}
+                          onCardClick={(app) => {
+                            setSelectedApp(app);
+                            setShowForm(true);
+                          }}
+                        />
+                      );
+                    })}
+                  </div>
+                  <DragOverlay dropAnimation={null}>
+                    {activeDragId ? (
+                      (() => {
+                        const activeApp = applications.find((app) => app.id === activeDragId);
+                        return activeApp ? <ApplicationCard app={activeApp} onClick={() => { }} /> : null;
+                      })()
+                    ) : null}
+                  </DragOverlay>
+                </DndContext>
               </div>
-              <DragOverlay dropAnimation={null}>
-                {activeDragId ? (
-                  (() => {
-                    const activeApp = applications.find((app) => app.id === activeDragId);
-                    return activeApp ? <ApplicationCard app={activeApp} onClick={() => { }} /> : null;
-                  })()
-                ) : null}
-              </DragOverlay>
-            </DndContext>
+
+              {/* Table View — always mounted, hidden via CSS when inactive */}
+              <div style={{ display: activeTab === "Table" ? "block" : "none" }}>
+                <ApplicationTable
+                  applications={filteredApps}
+                  onRowClick={(app) => {
+                    setSelectedApp(app);
+                    setShowForm(true);
+                  }}
+                />
+              </div>
+
+              {/* Dashboard View — always mounted, hidden via CSS when inactive */}
+              <div style={{ display: activeTab === "Dashboard" ? "flex" : "none" }} className="flex-col items-center justify-center py-24 text-center">
+                <div className="w-16 h-16 rounded-2xl bg-secondary-light flex items-center justify-center text-3xl mb-4 text-primary">
+                  📊
+                </div>
+                <h2 className="text-lg font-semibold text-text mb-1">
+                  Analytics Dashboard
+                </h2>
+                <p className="text-[13px] text-text-muted max-w-[340px]">
+                  This section will contain charts and metrics for your application pipeline. Coming soon!
+                </p>
+              </div>
+            </>
           )}
         </div>
       </main>
