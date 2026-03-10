@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import NavBar from "../components/Layout/NavBar";
 import ApplicationForm from "../components/Forms/ApplicationForm";
 import type { Application } from "../types";
+import { applicationService } from "../services/applicationService";
+import { toast } from "sonner";
 
 /** Status → TailwindCSS color class mapping */
 const STATUS_STYLES: Record<
@@ -26,13 +28,49 @@ const STATUS_STYLES: Record<
 
 export default function Home() {
   const [showForm, setShowForm] = useState(false);
+  const [selectedApp, setSelectedApp] = useState<Application | null>(null);
   const [applications, setApplications] = useState<Application[]>([]);
   const [activeTab, setActiveTab] = useState("Board");
   const [typeFilter, setTypeFilter] = useState("All");
   const [seasonFilter, setSeasonFilter] = useState("All");
 
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch initial data from the API securely on mount
+  useEffect(() => {
+    const fetchApps = async () => {
+      try {
+        const fetched = await applicationService.getApplications();
+        // Transform backend keys into the frontend components expected keys
+        const formatted = fetched.map(app => ({
+          ...app,
+          company: app.companyName,
+          role: app.roleTitle,
+          salary: app.salaryRange ?? undefined,
+        })) as unknown as Application[];
+
+        setApplications(formatted);
+      } catch (error) {
+        toast.error("Failed to fetch applications from server.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchApps();
+  }, []);
+
   const handleSave = (app: Application) => {
-    setApplications((prev) => [...prev, app]);
+    setApplications((prev) => {
+      // If the app already exists in state via its ID, swap it cleanly 
+      const existingIdx = prev.findIndex((p) => p.id === app.id);
+      if (existingIdx !== -1) {
+        const newArray = [...prev];
+        newArray[existingIdx] = app;
+        return newArray;
+      }
+      // If it doesn't exist, it's a new Create action, append it!
+      return [app, ...prev]; // Prepend for fresh creations at top
+    });
     setShowForm(false);
   };
 
@@ -53,12 +91,16 @@ export default function Home() {
         onTypeFilterChange={setTypeFilter}
         seasonFilter={seasonFilter}
         onSeasonFilterChange={setSeasonFilter}
-        onAddClick={() => setShowForm(true)}
+        onAddClick={() => {
+          setSelectedApp(null);
+          setShowForm(true);
+        }}
       />
 
       {/* Application Form Modal */}
       <ApplicationForm
-        app={null}
+        key={selectedApp?.id || 'new'} // Force re-mount prefill when jumping across apps
+        app={selectedApp}
         isOpen={showForm}
         onClose={() => setShowForm(false)}
         onSave={handleSave}
@@ -108,6 +150,10 @@ export default function Home() {
                   return (
                     <div
                       key={i}
+                      onClick={() => {
+                        setSelectedApp(app);
+                        setShowForm(true);
+                      }}
                       className="bg-surface border border-border rounded-lg p-3.5 shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-card-hover)] transition-shadow duration-150 cursor-pointer"
                     >
                       {/* Company Name */}
@@ -146,7 +192,7 @@ export default function Home() {
                         {/* Deadline Tag */}
                         {app.deadline && (
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-warning/[0.13] text-warning">
-                            Due {app.deadline}
+                            Due {new Date(app.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}
                           </span>
                         )}
 
@@ -161,7 +207,7 @@ export default function Home() {
                       {/* Date Applied */}
                       {app.dateApplied && (
                         <p className="text-[10px] text-text-muted mt-2">
-                          Applied {app.dateApplied}
+                          Applied {new Date(app.dateApplied).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}
                         </p>
                       )}
                     </div>

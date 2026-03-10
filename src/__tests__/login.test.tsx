@@ -51,4 +51,28 @@ describe("Login Page", () => {
             });
         });
     });
+
+    it("displays an error message when signIn fails", async () => {
+        vi.mocked(signIn).mockResolvedValueOnce({ error: "CredentialsSignin", status: 401, ok: false } as any);
+
+        render(<LoginPage />);
+
+        fireEvent.change(screen.getByLabelText(/Email address/i), { target: { value: "wrong@example.com" } });
+        fireEvent.change(screen.getByLabelText(/Password/i), { target: { value: "wrongpass" } });
+        fireEvent.click(screen.getByRole("button", { name: /Sign in/i }));
+
+        expect(await screen.findByText("Invalid email or password")).toBeInTheDocument();
+    });
+
+    it("displays generic error message for unexpected failures", async () => {
+        vi.mocked(signIn).mockRejectedValueOnce(new Error("Network Error"));
+
+        render(<LoginPage />);
+
+        fireEvent.change(screen.getByLabelText(/Email address/i), { target: { value: "test@example.com" } });
+        fireEvent.change(screen.getByLabelText(/Password/i), { target: { value: "password" } });
+        fireEvent.click(screen.getByRole("button", { name: /Sign in/i }));
+
+        expect(await screen.findByText("An unexpected error occurred")).toBeInTheDocument();
+    });
 });

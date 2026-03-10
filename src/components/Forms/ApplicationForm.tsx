@@ -1,6 +1,8 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+import { applicationService, CreateApplicationData, UpdateApplicationData } from "../../services/applicationService";
 import type {
     Application,
     ApplicationStatus,
@@ -40,6 +42,10 @@ export default function ApplicationForm({
 }: ApplicationFormProps) {
     const dialogRef = useRef<HTMLDialogElement>(null);
     const formRef = useRef<HTMLFormElement>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Store localized form errors for Zod misses
+    const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
     useEffect(() => {
         const dialog = dialogRef.current;
@@ -54,37 +60,107 @@ export default function ApplicationForm({
     useEffect(() => {
         const dialog = dialogRef.current;
         if (!dialog) return;
-        const handleClose = () => onClose();
+        const handleClose = () => {
+            // Unset errors if they manually close
+            setFormErrors({});
+            onClose();
+        };
         dialog.addEventListener("close", handleClose);
         return () => dialog.removeEventListener("close", handleClose);
     }, [onClose]);
 
-    const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
+        setFormErrors({});
         const fd = new FormData(e.currentTarget);
 
-        const application: Application = {
-            id: app?.id,
-            company: fd.get("company") as string,
-            role: fd.get("role") as string,
-            url: (fd.get("url") as string) || undefined,
-            location: (fd.get("location") as string) || undefined,
-            salary: (fd.get("salary") as string) || undefined,
-            dateApplied: (fd.get("dateApplied") as string) || undefined,
-            status: (fd.get("status") as ApplicationStatus) || "Saved",
-            type: (fd.get("type") as ApplicationType) || "Internship",
-            season: (fd.get("season") as string) || undefined,
-            deadline: (fd.get("deadline") as string) || undefined,
-            isRolling: fd.get("isRolling") === "on",
-            notes: (fd.get("notes") as string) || undefined,
-        };
+        const company = fd.get("company") as string;
+        const role = fd.get("role") as string;
 
-        onSave(application);
-        formRef.current?.reset();
+        if (!company.trim()) {
+            setFormErrors(prev => ({ ...prev, company: "Company Name is required" }));
+            return;
+        }
+        if (!role.trim()) {
+            setFormErrors(prev => ({ ...prev, role: "Role Title is required" }));
+            return;
+        }
+
+        setIsSubmitting(true);
+
+        try {
+            // Helper to safely cast empty HTML text inputs to strictly null for Zod
+            const getNullableString = (key: string): string | null => {
+                const val = fd.get(key) as string;
+                if (!val) return null;
+                const trimmed = val.trim();
+                return trimmed === "" ? null : trimmed;
+            };
+
+            // Build strictly typed API payload
+            const payload = {
+                companyName: company,
+                roleTitle: role,
+                url: getNullableString("url"),
+                location: getNullableString("location"),
+                salaryRange: getNullableString("salary"),
+                dateApplied: getNullableString("dateApplied") ? new Date(fd.get("dateApplied") as string).toISOString() : null,
+                status: (fd.get("status") as string) || "Saved",
+                type: (fd.get("type") as string) || "Internship",
+                season: getNullableString("season"),
+                deadline: getNullableString("deadline") ? new Date(fd.get("deadline") as string).toISOString() : null,
+                isRolling: fd.get("isRolling") === "on",
+                notes: getNullableString("notes"),
+            };
+
+            let savedApplication: Application;
+
+            // Trigger corresponding REST call
+            if (app?.id) {
+                // We are updating an existing
+                const serverResponse = await applicationService.updateApplication(String(app.id), payload as UpdateApplicationData);
+
+                // Convert Application model to component's expected shape and push to UI state
+                savedApplication = {
+                    ...app,
+                    ...payload,
+                    // Re-mapping keys back to frontend interfaces temporarily
+                    company: serverResponse.companyName,
+                    role: serverResponse.roleTitle,
+                    salary: serverResponse.salaryRange ?? undefined,
+                    id: serverResponse.id,
+                } as any;
+
+                toast.success("Application updated successfully!");
+
+            } else {
+                // We are creating new
+                const serverResponse = await applicationService.createApplication(payload as CreateApplicationData);
+
+                savedApplication = {
+                    ...payload,
+                    company: serverResponse.companyName,
+                    role: serverResponse.roleTitle,
+                    salary: serverResponse.salaryRange ?? undefined,
+                    id: serverResponse.id,
+                } as any;
+
+                toast.success("Application created successfully!");
+            }
+
+            onSave(savedApplication);
+            formRef.current?.reset();
+
+        } catch (error: any) {
+            toast.error(error.message || "Failed to save application");
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const handleCancel = () => {
         formRef.current?.reset();
+        setFormErrors({});
         onClose();
     };
 
@@ -117,9 +193,9 @@ export default function ApplicationForm({
                     <div>
                         <label
                             htmlFor="company"
-                            className="block text-xs font-normal text-text-muted mb-1"
+                            className={`block text-xs font-normal mb-1 ${formErrors.company ? "text-danger" : "text-text-muted"}`}
                         >
-                            Company Name <span className="text-danger">*</span>
+                            {formErrors.company ? formErrors.company : "Company Name"} {<span className="text-danger">*</span>}
                         </label>
                         <input
                             id="company"
@@ -128,7 +204,7 @@ export default function ApplicationForm({
                             required
                             placeholder="e.g. Google"
                             defaultValue={app?.company ?? ""}
-                            className="w-full h-9 px-3 text-[13px] text-text bg-surface border border-border rounded-md placeholder:text-text-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors invalid:[&:not(:placeholder-shown)]:border-danger"
+                            className={`w-full h-9 px-3 text-[13px] text-text bg-surface border rounded-md placeholder:text-text-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors ${formErrors.company ? "border-danger" : "border-border focus:border-primary"}`}
                         />
                     </div>
 
@@ -136,9 +212,9 @@ export default function ApplicationForm({
                     <div>
                         <label
                             htmlFor="role"
-                            className="block text-xs font-normal text-text-muted mb-1"
+                            className={`block text-xs font-normal mb-1 ${formErrors.role ? "text-danger" : "text-text-muted"}`}
                         >
-                            Role Title <span className="text-danger">*</span>
+                            {formErrors.role ? formErrors.role : "Role Title"} {<span className="text-danger">*</span>}
                         </label>
                         <input
                             id="role"
@@ -147,7 +223,7 @@ export default function ApplicationForm({
                             required
                             placeholder="e.g. SWE Intern"
                             defaultValue={app?.role ?? ""}
-                            className="w-full h-9 px-3 text-[13px] text-text bg-surface border border-border rounded-md placeholder:text-text-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors invalid:[&:not(:placeholder-shown)]:border-danger"
+                            className={`w-full h-9 px-3 text-[13px] text-text bg-surface border rounded-md placeholder:text-text-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors ${formErrors.role ? "border-danger" : "border-border focus:border-primary"}`}
                         />
                     </div>
                 </div>
@@ -355,15 +431,17 @@ export default function ApplicationForm({
                     <button
                         type="button"
                         onClick={handleCancel}
-                        className="h-9 px-4 text-[13px] font-medium text-text bg-surface border border-border rounded-md hover:bg-background transition-colors cursor-pointer"
+                        disabled={isSubmitting}
+                        className="h-9 px-4 text-[13px] font-medium text-text bg-surface border border-border rounded-md hover:bg-background transition-colors cursor-pointer disabled:opacity-50"
                     >
                         Cancel
                     </button>
                     <button
                         type="submit"
-                        className="h-9 px-5 text-[13px] font-semibold text-white bg-primary hover:bg-primary-hover rounded-md transition-colors cursor-pointer"
+                        disabled={isSubmitting}
+                        className="h-9 px-5 text-[13px] font-semibold text-white bg-primary hover:bg-primary-hover rounded-md transition-colors cursor-pointer disabled:opacity-50"
                     >
-                        {app ? "Save Changes" : "Add Application"}
+                        {isSubmitting ? "Saving..." : app ? "Save Changes" : "Add Application"}
                     </button>
                 </div>
             </form>
