@@ -189,6 +189,10 @@ export default function Home() {
         isOpen={showForm}
         onClose={() => setShowForm(false)}
         onSave={handleSave}
+        onViewExistingApp={(existingApp) => {
+          setSelectedApp(existingApp);
+          setShowForm(true);
+        }}
       />
 
       {/* Main Content — below fixed nav */}

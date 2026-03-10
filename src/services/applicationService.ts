@@ -126,4 +126,24 @@ export const applicationService = {
             throw new Error(error.message || "Failed to delete application");
         }
     },
+
+    /**
+     * Check if a duplicate application exists (same company + role, case-insensitive).
+     */
+    async checkDuplicate(companyName: string, roleTitle: string): Promise<{ isDuplicate: boolean; existingApplication?: Application }> {
+        const response = await fetch(`${API_BASE_URL}/check-duplicate`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ companyName, roleTitle }),
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || "Failed to check for duplicates");
+        }
+
+        return response.json();
+    },
 };
