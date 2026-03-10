@@ -7,7 +7,6 @@ import { DndContext } from "@dnd-kit/core";
 const mockApps: Application[] = [
     {
         id: "app-1",
-        userId: "user-1",
         company: "Tesla",
         role: "Data Scientist",
         status: "Applied",
@@ -15,7 +14,6 @@ const mockApps: Application[] = [
     },
     {
         id: "app-2",
-        userId: "user-1",
         company: "Apple",
         role: "Frontend Dev",
         status: "Applied",

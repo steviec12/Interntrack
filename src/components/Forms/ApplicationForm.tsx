@@ -34,6 +34,21 @@ const SEASON_OPTIONS = [
 
 const TYPE_OPTIONS: ApplicationType[] = ["Internship", "Full-time"];
 
+// Map user-friendly frontend labels to Prisma/Zod backend enum values
+const STATUS_TO_BACKEND: Record<string, string> = {
+    "Saved": "Saved",
+    "Applied": "Applied",
+    "Phone Screen": "Interviewing",
+    "Interview": "Interviewing",
+    "Offer": "Offer",
+    "Rejected": "Rejected",
+};
+
+const TYPE_TO_BACKEND: Record<string, string> = {
+    "Internship": "Internship",
+    "Full-time": "FullTime",
+};
+
 export default function ApplicationForm({
     app,
     isOpen,
@@ -98,6 +113,9 @@ export default function ApplicationForm({
             };
 
             // Build strictly typed API payload
+            const rawStatus = (fd.get("status") as string) || "Saved";
+            const rawType = (fd.get("type") as string) || "Internship";
+
             const payload = {
                 companyName: company,
                 roleTitle: role,
@@ -105,8 +123,8 @@ export default function ApplicationForm({
                 location: getNullableString("location"),
                 salaryRange: getNullableString("salary"),
                 dateApplied: getNullableString("dateApplied") ? new Date(fd.get("dateApplied") as string).toISOString() : null,
-                status: (fd.get("status") as string) || "Saved",
-                type: (fd.get("type") as string) || "Internship",
+                status: STATUS_TO_BACKEND[rawStatus] || rawStatus,
+                type: TYPE_TO_BACKEND[rawType] || rawType,
                 season: getNullableString("season"),
                 deadline: getNullableString("deadline") ? new Date(fd.get("deadline") as string).toISOString() : null,
                 isRolling: fd.get("isRolling") === "on",
