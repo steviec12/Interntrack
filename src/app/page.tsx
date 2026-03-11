@@ -50,7 +50,7 @@ export default function Home() {
   const [showForm, setShowForm] = useState(false);
   const [selectedApp, setSelectedApp] = useState<Application | null>(null);
   const [applications, setApplications] = useState<Application[]>([]);
-  const [activeTab, setActiveTab] = useState("Board");
+  const [activeTab, setActiveTab] = useState("Dashboard");
   const [typeFilter, setTypeFilter] = useState("All");
   const [seasonFilter, setSeasonFilter] = useState("All");
   const [activeDragId, setActiveDragId] = useState<string | number | null>(null);
@@ -210,6 +210,17 @@ export default function Home() {
     setShowForm(false);
   };
 
+  const handleDelete = async (appId: string) => {
+    try {
+      await applicationService.deleteApplication(appId);
+      setApplications(prev => prev.filter(app => String(app.id) !== appId));
+      setShowForm(false);
+      toast.success("Application deleted.");
+    } catch {
+      toast.error("Failed to delete application.");
+    }
+  };
+
   const handleSetReminder = async (appId: string, date: string | null) => {
     try {
       await applicationService.updateApplication(appId, { reminderDate: date, reminderDone: false } as any);
@@ -279,6 +290,7 @@ export default function Home() {
         app={selectedApp}
         isOpen={showForm}
         onClose={() => setShowForm(false)}
+        onDelete={handleDelete}
         onSave={(savedApp) => {
           handleSave(savedApp);
           // If the saved app is Rejected and has no rejection note yet, prompt the modal
@@ -381,7 +393,83 @@ export default function Home() {
               </div>
 
               {/* Dashboard View */}
-              <div style={{ display: activeTab === "Dashboard" ? "block" : "none" }} className="py-6">
+              <div style={{ display: activeTab === "Dashboard" ? "block" : "none" }} className="py-6 space-y-8">
+                
+                {/* Metrics Row */}
+                {(() => {
+                  const totalApps = filteredApps.length;
+                  const statuses = {
+                    Saved: filteredApps.filter(a => a.status === "Saved").length,
+                    Applied: filteredApps.filter(a => a.status === "Applied").length,
+                    "Phone Screen": filteredApps.filter(a => a.status === "Phone Screen").length,
+                    Interview: filteredApps.filter(a => a.status === "Interview").length,
+                    Offer: filteredApps.filter(a => a.status === "Offer").length,
+                    Rejected: filteredApps.filter(a => a.status === "Rejected").length,
+                  };
+
+                  const activeApps = totalApps - statuses.Saved;
+                  const respondedApps = statuses["Phone Screen"] + statuses.Interview + statuses.Offer;
+                  const responseRate = activeApps > 0 ? Math.round((respondedApps / activeApps) * 100) : 0;
+
+                  return (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      {/* Total Metric */}
+                      <div className="p-5 border border-border rounded-xl bg-surface flex flex-col justify-center">
+                        <p className="text-[13px] font-medium text-text-muted mb-1">Total Applications</p>
+                        <p className="text-3xl font-bold text-text">{totalApps}</p>
+                      </div>
+
+                      {/* Response Rate Metric */}
+                      <div className="p-5 border border-border rounded-xl bg-surface flex flex-col justify-center relative group">
+                        <p className="text-[13px] font-medium text-text-muted mb-1 flex items-center gap-1.5 cursor-help">
+                          Response Rate
+                          <span className="w-4 h-4 rounded-full bg-border flex items-center justify-center text-[10px] font-bold text-text-muted">?</span>
+                        </p>
+                        <p className="text-3xl font-bold text-primary">{responseRate}%</p>
+                        {/* Tooltip */}
+                        <div className="absolute left-0 bottom-[calc(100%+8px)] w-60 p-3 bg-text text-background text-[11px] rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all shadow-lg z-10 pointer-events-none">
+                          <p className="font-semibold mb-1">How is this calculated?</p>
+                          <p className="opacity-80 leading-relaxed">(Phone Screen + Interview + Offer) <br/>÷<br/> (Total - Saved)</p>
+                          <div className="absolute left-6 -bottom-1.5 border-4 border-transparent border-t-text"></div>
+                        </div>
+                      </div>
+
+                      {/* Stacked Pipeline Bar */}
+                      <div className="p-5 border border-border rounded-xl bg-surface lg:col-span-2 flex flex-col justify-center">
+                        <p className="text-[13px] font-medium text-text-muted mb-3">Pipeline Status</p>
+                        <div className="flex w-full h-8 rounded-md overflow-hidden bg-background border border-border/50">
+                          {totalApps === 0 ? (
+                            <div className="w-full h-full flex items-center justify-center text-[11px] text-text-muted">No data</div>
+                          ) : (
+                            <>
+                              {statuses.Saved > 0 && <div title={`Saved: ${statuses.Saved}`} style={{ width: `${(statuses.Saved/totalApps)*100}%` }} className="h-full bg-slate-300 dark:bg-slate-700 transition-all hover:opacity-80 relative group" />}
+                              {statuses.Applied > 0 && <div title={`Applied: ${statuses.Applied}`} style={{ width: `${(statuses.Applied/totalApps)*100}%` }} className="h-full bg-blue-400 dark:bg-blue-600 transition-all hover:opacity-80 relative group" />}
+                              {statuses["Phone Screen"] > 0 && <div title={`Phone Screen: ${statuses["Phone Screen"]}`} style={{ width: `${(statuses["Phone Screen"]/totalApps)*100}%` }} className="h-full bg-purple-400 dark:bg-purple-600 transition-all hover:opacity-80 relative group" />}
+                              {statuses.Interview > 0 && <div title={`Interview: ${statuses.Interview}`} style={{ width: `${(statuses.Interview/totalApps)*100}%` }} className="h-full bg-amber-400 dark:bg-amber-500 transition-all hover:opacity-80 relative group" />}
+                              {statuses.Offer > 0 && <div title={`Offer: ${statuses.Offer}`} style={{ width: `${(statuses.Offer/totalApps)*100}%` }} className="h-full bg-green-500 transition-all hover:opacity-80 relative group" />}
+                              {statuses.Rejected > 0 && <div title={`Rejected: ${statuses.Rejected}`} style={{ width: `${(statuses.Rejected/totalApps)*100}%` }} className="h-full bg-red-400 dark:bg-red-500 transition-all hover:opacity-80 relative group" />}
+                            </>
+                          )}
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5">
+                          {[
+                            { label: "Saved", color: "bg-slate-300 dark:bg-slate-700", count: statuses.Saved },
+                            { label: "Applied", color: "bg-blue-400 dark:bg-blue-600", count: statuses.Applied },
+                            { label: "Interviewing", color: "bg-purple-400 dark:bg-purple-600", count: statuses["Phone Screen"] + statuses.Interview },
+                            { label: "Offer", color: "bg-green-500", count: statuses.Offer },
+                            { label: "Rejected", color: "bg-red-400 dark:bg-red-500", count: statuses.Rejected },
+                          ].filter(s => s.count > 0).map(s => (
+                            <div key={s.label} className="flex items-center gap-1.5 text-[11px] text-text-muted">
+                              <span className={`w-2 h-2 rounded-full ${s.color}`}></span>
+                              {s.label} <span className="font-semibold text-text">{s.count}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                   {/* Left Column: This Week */}
                   <div>

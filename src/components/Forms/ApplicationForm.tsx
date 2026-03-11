@@ -11,11 +11,12 @@ import type {
 import DuplicateWarningModal from "./DuplicateWarningModal";
 
 interface ApplicationFormProps {
-    app: Application | null;
     isOpen: boolean;
     onClose: () => void;
     onSave: (app: Application) => void;
+    onDelete?: (id: string) => void;
     onViewExistingApp?: (app: Application) => void;
+    app?: Application | null;  // If provided, form is in "Edit" mode. If null/undefined, it's "Create" mode.
 }
 
 const STATUS_OPTIONS: ApplicationStatus[] = [
@@ -51,13 +52,7 @@ const TYPE_TO_BACKEND: Record<string, string> = {
     "Full-time": "FullTime",
 };
 
-export default function ApplicationForm({
-    app,
-    isOpen,
-    onClose,
-    onSave,
-    onViewExistingApp,
-}: ApplicationFormProps) {
+export default function ApplicationForm({ isOpen, onClose, onSave, onDelete, onViewExistingApp, app }: ApplicationFormProps) {
     const dialogRef = useRef<HTMLDialogElement>(null);
     const formRef = useRef<HTMLFormElement>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -569,22 +564,40 @@ export default function ApplicationForm({
                     )}
 
                     {/* Footer Actions */}
-                    <div className="flex justify-end gap-3 mt-6">
-                        <button
-                            type="button"
-                            onClick={handleCancel}
-                            disabled={isSubmitting}
-                            className="h-9 px-4 text-[13px] font-medium text-text bg-surface border border-border rounded-md hover:bg-background transition-colors cursor-pointer disabled:opacity-50"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            type="submit"
-                            disabled={isSubmitting}
-                            className="h-9 px-5 text-[13px] font-semibold text-white bg-primary hover:bg-primary-hover rounded-md transition-colors cursor-pointer disabled:opacity-50"
-                        >
-                            {isSubmitting ? "Saving..." : app ? "Save Changes" : "Add Application"}
-                        </button>
+                    <div className="flex justify-between items-center mt-6">
+                        <div>
+                            {app && onDelete && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        if (window.confirm("Are you sure you want to delete this application? This action cannot be undone.")) {
+                                            if (app.id) onDelete(String(app.id));
+                                        }
+                                    }}
+                                    disabled={isSubmitting}
+                                    className="h-9 px-4 text-[13px] font-medium text-status-rejected/80 bg-status-rejected/5 border border-status-rejected/20 rounded-md hover:bg-status-rejected/10 hover:text-status-rejected transition-colors cursor-pointer disabled:opacity-50"
+                                >
+                                    Delete
+                                </button>
+                            )}
+                        </div>
+                        <div className="flex gap-3">
+                            <button
+                                type="button"
+                                onClick={handleCancel}
+                                disabled={isSubmitting}
+                                className="h-9 px-4 text-[13px] font-medium text-text bg-surface border border-border rounded-md hover:bg-background transition-colors cursor-pointer disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={isSubmitting}
+                                className="h-9 px-4 text-[13px] font-semibold text-white bg-primary hover:bg-primary-hover rounded-md transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-2"
+                            >
+                                {isSubmitting ? "Saving..." : app ? "Save Changes" : "Create Application"}
+                            </button>
+                        </div>
                     </div>
                 </form>
             </dialog>
