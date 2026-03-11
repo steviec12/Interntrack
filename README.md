@@ -22,7 +22,11 @@
 - **Rejection Insights**: Intelligent stacked bar charts charting reasons for rejection (rendered with Recharts) to help identify patterns in the job hunt.
 - **Global Filters**: Dynamically filter all metrics, charts, and upcoming tasks by "Internship", "Full-time", or specific hiring seasons.
 
-### 4. **Public REST API**
+### 4. **Chrome Auto-Capture Extension**
+- **Seamless Data Entry**: Pre-fills application data directly from LinkedIn and other job portals.
+- **Background Syncing**: Instantly saves captured job postings directly to your active Kanban board.
+
+### 5. **Public REST API**
 - Extensive, documented `/api/v1/` RESTful JSON backend natively built within Next.js API Routes.
 - Full CRUD operations with internal Zod validation schemas.
 - Documented heavily in `API_DOCS.md`.
@@ -44,7 +48,7 @@
 
 **DevOps & Evaluation**
 - **Testing**: Vitest, React Testing Library (currently > 80% coverage on tests)
-- **CI/CD**: GitHub Actions (Linting, Testing, and Deployment triggers) - *Pending Setup*
+- **CI/CD**: GitHub Actions (Automated Linting and Vitest Coverage Pipelines configured and passing)
 
 ---
 
