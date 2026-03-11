@@ -4,7 +4,13 @@ import { useSession } from "next-auth/react";
 import NavBar from "../components/Layout/NavBar";
 import ApplicationForm from "../components/Forms/ApplicationForm";
 import type { Application } from "../types";
-import { applicationService } from "../services/applicationService";
+import {
+  applicationService,
+  type Application as ApiApplication,
+  type ApplicationStatus as ApiApplicationStatus,
+  type ApplicationType as ApiApplicationType,
+  type UpdateApplicationData,
+} from "../services/applicationService";
 import { toast } from "sonner";
 import BoardColumn from "../components/Board/BoardColumn";
 import ApplicationCard from "../components/Board/ApplicationCard";
@@ -31,10 +37,12 @@ const COLUMNS = [
   "Interview",
   "Offer",
   "Rejected",
-];
+] as const;
+
+type BoardStatus = (typeof COLUMNS)[number];
 
 // Reverse map: convert Prisma/backend enum values back to frontend display labels
-const BACKEND_STATUS_TO_FRONTEND: Record<string, string> = {
+const BACKEND_STATUS_TO_FRONTEND: Record<ApiApplicationStatus, BoardStatus> = {
   Saved: "Saved",
   Applied: "Applied",
   Interviewing: "Interview",
@@ -42,10 +50,45 @@ const BACKEND_STATUS_TO_FRONTEND: Record<string, string> = {
   Rejected: "Rejected",
 };
 
-const BACKEND_TYPE_TO_FRONTEND: Record<string, string> = {
+const FRONTEND_STATUS_TO_BACKEND: Record<BoardStatus, ApiApplicationStatus> = {
+  Saved: "Saved",
+  Applied: "Applied",
+  "Phone Screen": "Interviewing",
+  Interview: "Interviewing",
+  Offer: "Offer",
+  Rejected: "Rejected",
+};
+
+const BACKEND_TYPE_TO_FRONTEND: Record<ApiApplicationType, Application["type"]> = {
   Internship: "Internship",
   FullTime: "Full-time",
 };
+
+const isBoardStatus = (value: unknown): value is BoardStatus =>
+  typeof value === "string" && COLUMNS.some((column) => column === value);
+
+const toFrontendApplication = (app: ApiApplication): Application => ({
+  id: app.id,
+  company: app.companyName,
+  role: app.roleTitle,
+  url: app.url ?? undefined,
+  location: app.location ?? undefined,
+  salary: app.salaryRange ?? undefined,
+  dateApplied: app.dateApplied ?? undefined,
+  status: BACKEND_STATUS_TO_FRONTEND[app.status],
+  type: BACKEND_TYPE_TO_FRONTEND[app.type],
+  season: app.season ?? undefined,
+  deadline: app.deadline ?? undefined,
+  deadlineType: app.deadlineType ?? undefined,
+  isRolling: app.isRolling,
+  notes: app.notes ?? undefined,
+  rejectionReason: app.rejectionReason ?? undefined,
+  reflectionNote: app.reflectionNote ?? undefined,
+  reminderDate: app.reminderDate ?? undefined,
+  reminderDone: app.reminderDone,
+  createdAt: app.createdAt,
+  updatedAt: app.updatedAt,
+});
 
 export default function Home() {
   const { status } = useSession();
@@ -80,18 +123,18 @@ export default function Home() {
     const { active, over } = event;
 
     // If dropped outside a valid column, do nothing
-    if (!over) return;
+    if (!over || !isBoardStatus(over.id)) return;
 
-    const applicationId = active.id;
-    const newStatus = over.id as any;
+    const applicationId = String(active.id);
+    const newStatus = over.id;
 
     // Parse the app payload from the draggable node
-    const activeApp = active.data.current?.app as Application;
+    const activeApp = active.data.current?.app as Application | undefined;
     if (!activeApp || activeApp.status === newStatus) return; // Ignore if dropped in same col
 
     // 1. Optimistic UI Update (Instant swap)
     setApplications(prev => prev.map(app =>
-      app.id === applicationId
+      String(app.id) === applicationId
         ? { ...app, status: newStatus, updatedAt: new Date().toISOString() }
         : app
     ));
@@ -104,17 +147,16 @@ export default function Home() {
 
     // 3. Background Persistence (PostgreSQL / Prisma)
     try {
-      let mappedStatus = newStatus;
-      if (newStatus === "Interview" || newStatus === "Phone Screen") {
-        mappedStatus = "Interviewing" as any;
-      }
+      const statusUpdate: UpdateApplicationData = {
+        status: FRONTEND_STATUS_TO_BACKEND[newStatus],
+      };
 
-      await applicationService.updateApplication(applicationId as string, { status: mappedStatus });
-    } catch (error) {
+      await applicationService.updateApplication(applicationId, statusUpdate);
+    } catch {
       // 4. Rollback if API fails
       toast.error("Failed to update status. Reverting...");
       setApplications(prev => prev.map(app =>
-        app.id === applicationId
+        String(app.id) === applicationId
           ? { ...app, status: activeApp.status, updatedAt: activeApp.updatedAt }
           : app
       ));
@@ -123,11 +165,13 @@ export default function Home() {
 
   const handleRejectionSave = async (appId: string, reason: string, reflection: string) => {
     try {
-      await applicationService.updateApplication(appId, {
-        status: "Rejected",
+      const rejectionUpdate: UpdateApplicationData = {
+        status: FRONTEND_STATUS_TO_BACKEND.Rejected,
         rejectionReason: reason || null,
         reflectionNote: reflection || null,
-      } as any);
+      };
+
+      await applicationService.updateApplication(appId, rejectionUpdate);
       setApplications(prev => prev.map(app =>
         String(app.id) === appId
           ? { ...app, status: "Rejected", rejectionReason: reason, reflectionNote: reflection }
@@ -144,7 +188,11 @@ export default function Home() {
   const handleRejectionSkip = async () => {
     if (!rejectionModalApp?.id) { setRejectionModalApp(null); return; }
     try {
-      await applicationService.updateApplication(String(rejectionModalApp.id), { status: "Rejected" } as any);
+      const rejectionUpdate: UpdateApplicationData = {
+        status: FRONTEND_STATUS_TO_BACKEND.Rejected,
+      };
+
+      await applicationService.updateApplication(String(rejectionModalApp.id), rejectionUpdate);
     } catch {
       // Rollback optimistic update
       setApplications(prev => prev.map(app =>
@@ -172,20 +220,7 @@ export default function Home() {
     const fetchApps = async () => {
       try {
         const fetched = await applicationService.getApplications();
-        // Transform backend keys into the frontend components expected keys
-        const formatted = fetched.map(app => ({
-          ...app,
-          company: app.companyName,
-          role: app.roleTitle,
-          salary: app.salaryRange ?? undefined,
-          status: BACKEND_STATUS_TO_FRONTEND[app.status] || app.status,
-          type: BACKEND_TYPE_TO_FRONTEND[app.type] || app.type,
-          rejectionReason: app.rejectionReason ?? undefined,
-          reflectionNote: app.reflectionNote ?? undefined,
-          reminderDate: app.reminderDate ?? undefined,
-          reminderDone: app.reminderDone ?? false,
-          deadlineType: app.deadlineType ?? undefined,
-        })) as unknown as Application[];
+        const formatted = fetched.map(toFrontendApplication);
 
         if (isActive) {
           setApplications(formatted);
@@ -205,23 +240,16 @@ export default function Home() {
   }, [status]);
 
   const handleSave = (app: Application) => {
-    // Reverse-map backend enum values to frontend display labels
-    const mappedApp = {
-      ...app,
-      status: BACKEND_STATUS_TO_FRONTEND[app.status] || app.status,
-      type: BACKEND_TYPE_TO_FRONTEND[app.type] || app.type,
-    } as Application;
-
     setApplications((prev) => {
       // If the app already exists in state via its ID, swap it cleanly 
-      const existingIdx = prev.findIndex((p) => p.id === mappedApp.id);
+      const existingIdx = prev.findIndex((p) => p.id === app.id);
       if (existingIdx !== -1) {
         const newArray = [...prev];
-        newArray[existingIdx] = mappedApp;
+        newArray[existingIdx] = app;
         return newArray;
       }
       // If it doesn't exist, it's a new Create action, append it!
-      return [mappedApp, ...prev]; // Prepend for fresh creations at top
+      return [app, ...prev]; // Prepend for fresh creations at top
     });
     setShowForm(false);
   };
@@ -239,7 +267,12 @@ export default function Home() {
 
   const handleSetReminder = async (appId: string, date: string | null) => {
     try {
-      await applicationService.updateApplication(appId, { reminderDate: date, reminderDone: false } as any);
+      const reminderUpdate: UpdateApplicationData = {
+        reminderDate: date,
+        reminderDone: false,
+      };
+
+      await applicationService.updateApplication(appId, reminderUpdate);
       setApplications(prev => prev.map(app =>
         String(app.id) === appId
           ? { ...app, reminderDate: date ?? undefined, reminderDone: false }
@@ -253,7 +286,11 @@ export default function Home() {
 
   const handleMarkReminderDone = async (appId: string) => {
     try {
-      await applicationService.updateApplication(appId, { reminderDone: true } as any);
+      const reminderUpdate: UpdateApplicationData = {
+        reminderDone: true,
+      };
+
+      await applicationService.updateApplication(appId, reminderUpdate);
       setApplications(prev => prev.map(app =>
         String(app.id) === appId ? { ...app, reminderDone: true } : app
       ));
@@ -265,7 +302,12 @@ export default function Home() {
 
   const handleSetDeadline = async (appId: string, date: string, type: string) => {
     try {
-      await applicationService.updateApplication(appId, { deadline: date, deadlineType: type } as any);
+      const deadlineUpdate: UpdateApplicationData = {
+        deadline: date,
+        deadlineType: type,
+      };
+
+      await applicationService.updateApplication(appId, deadlineUpdate);
       setApplications(prev => prev.map(app =>
         String(app.id) === appId
           ? { ...app, deadline: date, deadlineType: type }
