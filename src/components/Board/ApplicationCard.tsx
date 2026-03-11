@@ -160,8 +160,22 @@ export default function ApplicationCard({ app, onClick, onSetReminder, onSetDead
 
             {/* Deadline row — inline setter */}
             <div className="mt-2 pt-2 border-t border-border/50">
-                {app.deadline ? (
-                    <p className={`text-[10px] font-medium flex items-center gap-1 ${
+                {app.deadline && !showDeadlineInput ? (
+                    <p 
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setPendingDeadlineType(app.deadlineType || "");
+                            if (app.deadline) {
+                                // Extract just the YYYY-MM-DD local part to prefill the date input properly
+                                const dateObj = new Date(app.deadline);
+                                const yyyy = dateObj.getUTCFullYear();
+                                const mm = String(dateObj.getUTCMonth() + 1).padStart(2, '0');
+                                const dd = String(dateObj.getUTCDate()).padStart(2, '0');
+                                setPendingDeadlineDate(`${yyyy}-${mm}-${dd}`);
+                            }
+                            setShowDeadlineInput(true);
+                        }}
+                        className={`text-[10px] font-medium flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity ${
                         deadlineUrgency === "expired" || deadlineUrgency === "critical"
                             ? "text-status-rejected"
                             : deadlineUrgency === "soon"
