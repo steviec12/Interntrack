@@ -9,6 +9,7 @@ import BoardColumn from "../components/Board/BoardColumn";
 import ApplicationCard from "../components/Board/ApplicationCard";
 import ApplicationTable from "../components/Board/ApplicationTable";
 import RejectionModal from "../components/Forms/RejectionModal";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
 import {
   DndContext,
@@ -381,132 +382,200 @@ export default function Home() {
 
               {/* Dashboard View */}
               <div style={{ display: activeTab === "Dashboard" ? "block" : "none" }} className="py-6">
-                <h2 className="text-base font-semibold text-text mb-4">📅 This Week</h2>
-                {(() => {
-                  const now = new Date();
-                  now.setHours(0, 0, 0, 0);
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  {/* Left Column: This Week */}
+                  <div>
+                    <h2 className="text-base font-semibold text-text mb-4">📅 This Week</h2>
+                    {(() => {
+                      const now = new Date();
+                      now.setHours(0, 0, 0, 0);
 
-                  const nextWeek = new Date(now);
-                  nextWeek.setDate(nextWeek.getDate() + 7);
+                      const nextWeek = new Date(now);
+                      nextWeek.setDate(nextWeek.getDate() + 7);
 
-                  type DashboardItem = {
-                    key: string;
-                    app: Application;
-                    date: Date;
-                    type: "Deadline" | "Reminder";
-                    label: string;
-                  };
+                      type DashboardItem = {
+                        key: string;
+                        app: Application;
+                        date: Date;
+                        type: "Deadline" | "Reminder";
+                        label: string;
+                      };
 
-                  const thisWeekItems: DashboardItem[] = [];
+                      const thisWeekItems: DashboardItem[] = [];
 
-                  applications.forEach(app => {
-                    // Check deadlines
-                    if (app.deadline) {
-                      const dlDate = new Date(app.deadline);
-                      dlDate.setHours(0, 0, 0, 0);
-                      if (dlDate <= nextWeek) {
-                        thisWeekItems.push({
-                          key: `dl-${app.id}`,
-                          app,
-                          date: dlDate,
-                          type: "Deadline",
-                          label: app.deadlineType ? `Deadline: ${app.deadlineType}` : "Deadline"
-                        });
-                      }
-                    }
+                      applications.forEach(app => {
+                        // Check deadlines
+                        if (app.deadline) {
+                          const dlDate = new Date(app.deadline);
+                          dlDate.setHours(0, 0, 0, 0);
+                          if (dlDate <= nextWeek) {
+                            thisWeekItems.push({
+                              key: `dl-${app.id}`,
+                              app,
+                              date: dlDate,
+                              type: "Deadline",
+                              label: app.deadlineType ? `Deadline: ${app.deadlineType}` : "Deadline"
+                            });
+                          }
+                        }
 
-                    // Check reminders
-                    if (app.reminderDate && !app.reminderDone) {
-                      const remDate = new Date(app.reminderDate);
-                      remDate.setHours(0, 0, 0, 0);
-                      if (remDate <= nextWeek) {
-                        thisWeekItems.push({
-                          key: `rm-${app.id}`,
-                          app,
-                          date: remDate,
-                          type: "Reminder",
-                          label: "Follow-up Reminder"
-                        });
-                      }
-                    }
-                  });
+                        // Check reminders
+                        if (app.reminderDate && !app.reminderDone) {
+                          const remDate = new Date(app.reminderDate);
+                          remDate.setHours(0, 0, 0, 0);
+                          if (remDate <= nextWeek) {
+                            thisWeekItems.push({
+                              key: `rm-${app.id}`,
+                              app,
+                              date: remDate,
+                              type: "Reminder",
+                              label: "Follow-up Reminder"
+                            });
+                          }
+                        }
+                      });
 
-                  // Sort soonest first
-                  thisWeekItems.sort((a, b) => a.date.getTime() - b.date.getTime());
+                      // Sort soonest first
+                      thisWeekItems.sort((a, b) => a.date.getTime() - b.date.getTime());
 
-                  if (thisWeekItems.length === 0) {
-                    return (
-                      <div className="flex flex-col items-center justify-center py-16 text-center">
-                        <div className="w-14 h-14 rounded-2xl bg-primary-light flex items-center justify-center text-2xl mb-3">✨</div>
-                        <p className="text-[13px] text-text-muted">You have a clear week ahead!</p>
-                        <p className="text-[13px] text-text-muted">Take a deep breath or apply to a new role.</p>
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <div className="space-y-2 max-w-2xl">
-                      {thisWeekItems.map(item => {
-                        const isOverdue = item.date < now;
-                        const isCritical = item.date.getTime() - now.getTime() <= 3 * 24 * 60 * 60 * 1000 && !isOverdue;
-                        const isSoon = item.date.getTime() - now.getTime() <= 7 * 24 * 60 * 60 * 1000 && !isCritical && !isOverdue;
-
+                      if (thisWeekItems.length === 0) {
                         return (
-                          <div
-                            key={item.key}
-                            onClick={() => {
-                              setSelectedApp(item.app);
-                              setShowForm(true);
-                            }}
-                            className={`flex items-center justify-between p-4 rounded-lg border group cursor-pointer transition-colors ${
-                              isOverdue
-                                ? "bg-status-rejected/5 border-status-rejected/30 hover:border-status-rejected/50"
-                                : isCritical
-                                ? "bg-surface border-status-rejected/30 hover:border-status-rejected/50"
-                                : isSoon
-                                ? "bg-surface border-warning/30 hover:border-warning/50"
-                                : "bg-surface border-border hover:border-text-muted/30"
-                            }`}
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="text-xl opacity-80">
-                                {item.type === "Deadline" ? "📅" : "🔔"}
-                              </div>
-                              <div>
-                                <p className="text-[13px] font-semibold text-text group-hover:text-primary transition-colors">
-                                  {item.app.company} <span className="text-[11px] font-normal text-text-muted mx-1">•</span> <span className="text-[12px] font-normal text-text-muted">{item.app.role}</span>
-                                </p>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <p className={`text-[11px] font-medium ${
-                                    isOverdue ? "text-status-rejected" : isCritical ? "text-status-rejected" : isSoon ? "text-warning" : "text-status-interview"
-                                  }`}>
-                                    {isOverdue ? "⚠️ Overdue · " : ""}
-                                    {item.date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}
-                                  </p>
-                                  <span className="text-[10px] text-text-muted px-1.5 py-0.5 rounded bg-background border border-border">
-                                    {item.label}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                            
-                            {item.type === "Reminder" && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation(); // prevent opening form
-                                  handleMarkReminderDone(String(item.app.id));
-                                }}
-                                className="ml-4 px-3 py-1.5 text-[12px] font-semibold bg-background hover:bg-primary hover:border-primary border border-border hover:text-white text-text-muted rounded-md transition-colors whitespace-nowrap"
-                              >
-                                Mark Done
-                              </button>
-                            )}
+                          <div className="flex flex-col items-center justify-center py-16 text-center border rounded-xl bg-surface">
+                            <div className="w-14 h-14 rounded-2xl bg-primary-light flex items-center justify-center text-2xl mb-3">✨</div>
+                            <p className="text-[13px] text-text-muted">You have a clear week ahead!</p>
+                            <p className="text-[13px] text-text-muted">Take a deep breath or apply to a new role.</p>
                           </div>
                         );
-                      })}
-                    </div>
-                  );
-                })()}
+                      }
+
+                      return (
+                        <div className="space-y-2">
+                          {thisWeekItems.map(item => {
+                            const isOverdue = item.date < now;
+                            const isCritical = item.date.getTime() - now.getTime() <= 3 * 24 * 60 * 60 * 1000 && !isOverdue;
+                            const isSoon = item.date.getTime() - now.getTime() <= 7 * 24 * 60 * 60 * 1000 && !isCritical && !isOverdue;
+
+                            return (
+                              <div
+                                key={item.key}
+                                onClick={() => {
+                                  setSelectedApp(item.app);
+                                  setShowForm(true);
+                                }}
+                                className={`flex items-center justify-between p-4 rounded-lg border group cursor-pointer transition-colors ${
+                                  isOverdue
+                                    ? "bg-status-rejected/5 border-status-rejected/30 hover:border-status-rejected/50"
+                                    : isCritical
+                                    ? "bg-surface border-status-rejected/30 hover:border-status-rejected/50"
+                                    : isSoon
+                                    ? "bg-surface border-warning/30 hover:border-warning/50"
+                                    : "bg-surface border-border hover:border-text-muted/30"
+                                }`}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className="text-xl opacity-80">
+                                    {item.type === "Deadline" ? "📅" : "🔔"}
+                                  </div>
+                                  <div>
+                                    <p className="text-[13px] font-semibold text-text group-hover:text-primary transition-colors">
+                                      {item.app.company} <span className="text-[11px] font-normal text-text-muted mx-1">•</span> <span className="text-[12px] font-normal text-text-muted">{item.app.role}</span>
+                                    </p>
+                                    <div className="flex items-center gap-2 mt-1">
+                                      <p className={`text-[11px] font-medium ${
+                                        isOverdue ? "text-status-rejected" : isCritical ? "text-status-rejected" : isSoon ? "text-warning" : "text-status-interview"
+                                      }`}>
+                                        {isOverdue ? "⚠️ Overdue · " : ""}
+                                        {item.date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}
+                                      </p>
+                                      <span className="text-[10px] text-text-muted px-1.5 py-0.5 rounded bg-background border border-border">
+                                        {item.label}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                                
+                                {item.type === "Reminder" && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation(); // prevent opening form
+                                      handleMarkReminderDone(String(item.app.id));
+                                    }}
+                                    className="ml-4 px-3 py-1.5 text-[12px] font-semibold bg-background hover:bg-primary hover:border-primary border border-border hover:text-white text-text-muted rounded-md transition-colors whitespace-nowrap"
+                                  >
+                                    Mark Done
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Right Column: Rejection Insights */}
+                  <div>
+                    <h2 className="text-base font-semibold text-text mb-4">📉 Rejection Insights</h2>
+                    {(() => {
+                      // Process only correctly filtered apps
+                      const rejectedApps = filteredApps.filter(app => app.status === "Rejected" && app.rejectionReason);
+                      
+                      if (rejectedApps.length < 3) {
+                        return (
+                          <div className="flex flex-col items-center justify-center py-16 text-center border rounded-xl bg-surface h-full min-h-[300px]">
+                            <div className="w-14 h-14 rounded-2xl bg-secondary-light flex items-center justify-center text-2xl mb-3 text-primary">✨</div>
+                            <p className="text-[13px] font-medium text-text mb-1">Not enough data to analyze yet.</p>
+                            <p className="text-[12px] text-text-muted">Keep applying! Insights appear after 3 rejections.</p>
+                          </div>
+                        );
+                      }
+
+                      // Aggregate reasons
+                      const counts: Record<string, number> = {};
+                      rejectedApps.forEach(app => {
+                        const reason = app.rejectionReason as string;
+                        counts[reason] = (counts[reason] || 0) + 1;
+                      });
+
+                      const chartData = Object.entries(counts)
+                        .map(([reason, count]) => ({ reason, count }))
+                        .sort((a, b) => b.count - a.count); // Highest count first
+
+                      return (
+                        <div className="border rounded-xl bg-surface p-6 h-full min-h-[300px] flex flex-col">
+                          <p className="text-[12px] text-text-muted mb-6">
+                            Based on {rejectedApps.length} rejected applications matching your current filters.
+                          </p>
+                          <div className="flex-1 w-full min-h-[250px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <BarChart data={chartData} layout="vertical" margin={{ top: 0, right: 30, left: 40, bottom: 0 }}>
+                                <XAxis type="number" allowDecimals={false} hide />
+                                <YAxis 
+                                  dataKey="reason" 
+                                  type="category" 
+                                  axisLine={false} 
+                                  tickLine={false} 
+                                  tick={{ fontSize: 11, fill: 'var(--color-text-muted)' }} 
+                                  width={120} 
+                                />
+                                <Tooltip 
+                                  cursor={{ fill: 'var(--color-background)' }}
+                                  contentStyle={{ borderRadius: '8px', border: '1px solid var(--color-border)', fontSize: '12px' }}
+                                />
+                                <Bar 
+                                  dataKey="count" 
+                                  fill="var(--color-primary)" 
+                                  radius={[0, 4, 4, 0]} 
+                                  barSize={24}
+                                />
+                              </BarChart>
+                            </ResponsiveContainer>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
               </div>
             </>
           )}

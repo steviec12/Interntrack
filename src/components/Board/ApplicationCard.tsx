@@ -236,8 +236,25 @@ export default function ApplicationCard({ app, onClick, onSetReminder, onSetDead
 
             {/* Reminder row */}
             <div className="mt-2 pt-2 border-t border-border/50">
-                {app.reminderDate && !app.reminderDone ? (
-                    <p className={`text-[10px] font-medium flex items-center gap-1 ${
+                {app.reminderDate && !app.reminderDone && !showDateInput ? (
+                    <p 
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (app.reminderDate) {
+                                // Extract just the YYYY-MM-DD local part to prefill the date input properly
+                                const dateObj = new Date(app.reminderDate);
+                                const yyyy = dateObj.getUTCFullYear();
+                                const mm = String(dateObj.getUTCMonth() + 1).padStart(2, '0');
+                                const dd = String(dateObj.getUTCDate()).padStart(2, '0');
+                                // Reuse the existing HTML input by temporarily setting its default value through state if we wanted, 
+                                // but the input below uses `onChange` to immediately fire. 
+                                // To make pre-fill work smoothly with the simple `onChange` firing exactly on selection:
+                                // We'll just rely on the browser's native `<input type="date">` showing the current date if we give it a `defaultValue`,
+                                // but since it immediately saves in this UI pattern, we just open it.
+                            }
+                            setShowDateInput(true);
+                        }}
+                        className={`text-[10px] font-medium flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity ${
                         new Date(app.reminderDate) < new Date() ? "text-status-rejected" : "text-status-interview"
                     }`}>
                         <span>🔔</span>
