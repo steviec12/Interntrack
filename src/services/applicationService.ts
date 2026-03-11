@@ -19,6 +19,9 @@ export interface Application {
     notes: string | null;
     rejectionReason: string | null;
     reflectionNote: string | null;
+    reminderDate: string | null;
+    reminderDone: boolean;
+    deadlineType: string | null;
     createdAt: string;
     updatedAt: string;
 }

@@ -31,7 +31,7 @@ export async function POST(req: Request) {
         });
 
         const existingApplication = userApplications.find(
-            (app) =>
+            (app: { companyName: string; roleTitle: string }) =>
                 app.companyName.toLowerCase() === companyName.toLowerCase() &&
                 app.roleTitle.toLowerCase() === roleTitle.toLowerCase()
         );
