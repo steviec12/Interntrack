@@ -38,6 +38,13 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/interntrack_test
         run: npx prisma db push
         
+      - name: Build Next.js Application
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/interntrack_test
+          NEXTAUTH_SECRET: testing-secret-key-12345
+          NEXTAUTH_URL: http://localhost:3000
+        run: npm run build
+        
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps
       
