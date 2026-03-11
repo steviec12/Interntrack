@@ -6,9 +6,10 @@ interface BoardColumnProps {
     title: string;
     applications: Application[];
     onCardClick: (app: Application) => void;
+    onSetReminder?: (appId: string, date: string | null) => void;
 }
 
-export default function BoardColumn({ title, applications, onCardClick }: BoardColumnProps) {
+export default function BoardColumn({ title, applications, onCardClick, onSetReminder }: BoardColumnProps) {
     const { isOver, setNodeRef } = useDroppable({
         id: title, // We use the exact status name as the generic ID (e.g. 'Saved')
     });
@@ -32,6 +33,7 @@ export default function BoardColumn({ title, applications, onCardClick }: BoardC
                         key={app.id}
                         app={app}
                         onClick={() => onCardClick(app)}
+                        onSetReminder={onSetReminder}
                     />
                 ))}
             </div>

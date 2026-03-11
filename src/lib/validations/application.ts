@@ -35,4 +35,6 @@ export const applicationUpdateSchema = z.object({
     notes: z.string().optional().nullable(),
     rejectionReason: z.string().optional().nullable(),
     reflectionNote: z.string().optional().nullable(),
+    reminderDate: z.string().datetime().optional().nullable(),
+    reminderDone: z.boolean().optional(),
 });
