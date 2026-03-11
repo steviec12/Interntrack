@@ -17,6 +17,8 @@ export interface Application {
     notes?: string;
     rejectionReason?: string;
     reflectionNote?: string;
+    reminderDate?: string;
+    reminderDone?: boolean;
     createdAt?: string;
     updatedAt?: string;
 }

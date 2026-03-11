@@ -172,6 +172,8 @@ export default function Home() {
           type: BACKEND_TYPE_TO_FRONTEND[app.type] || app.type,
           rejectionReason: app.rejectionReason ?? undefined,
           reflectionNote: app.reflectionNote ?? undefined,
+          reminderDate: app.reminderDate ?? undefined,
+          reminderDone: app.reminderDone ?? false,
         })) as unknown as Application[];
 
         setApplications(formatted);
@@ -204,6 +206,32 @@ export default function Home() {
       return [mappedApp, ...prev]; // Prepend for fresh creations at top
     });
     setShowForm(false);
+  };
+
+  const handleSetReminder = async (appId: string, date: string | null) => {
+    try {
+      await applicationService.updateApplication(appId, { reminderDate: date, reminderDone: false } as any);
+      setApplications(prev => prev.map(app =>
+        String(app.id) === appId
+          ? { ...app, reminderDate: date ?? undefined, reminderDone: false }
+          : app
+      ));
+      toast.success("Reminder set!");
+    } catch {
+      toast.error("Failed to set reminder.");
+    }
+  };
+
+  const handleMarkReminderDone = async (appId: string) => {
+    try {
+      await applicationService.updateApplication(appId, { reminderDone: true } as any);
+      setApplications(prev => prev.map(app =>
+        String(app.id) === appId ? { ...app, reminderDone: true } : app
+      ));
+      toast.success("Reminder marked as done!");
+    } catch {
+      toast.error("Failed to mark reminder as done.");
+    }
   };
 
   /** Filter applications based on active filters */
@@ -308,6 +336,7 @@ export default function Home() {
                             setSelectedApp(app);
                             setShowForm(true);
                           }}
+                          onSetReminder={handleSetReminder}
                         />
                       );
                     })}
@@ -334,17 +363,58 @@ export default function Home() {
                 />
               </div>
 
-              {/* Dashboard View — always mounted, hidden via CSS when inactive */}
-              <div style={{ display: activeTab === "Dashboard" ? "flex" : "none" }} className="flex-col items-center justify-center py-24 text-center">
-                <div className="w-16 h-16 rounded-2xl bg-secondary-light flex items-center justify-center text-3xl mb-4 text-primary">
-                  📊
-                </div>
-                <h2 className="text-lg font-semibold text-text mb-1">
-                  Analytics Dashboard
-                </h2>
-                <p className="text-[13px] text-text-muted max-w-[340px]">
-                  This section will contain charts and metrics for your application pipeline. Coming soon!
-                </p>
+              {/* Dashboard View */}
+              <div style={{ display: activeTab === "Dashboard" ? "block" : "none" }} className="py-6">
+                <h2 className="text-base font-semibold text-text mb-4">🔔 Upcoming Reminders</h2>
+                {(() => {
+                  const upcoming = applications
+                    .filter(app => app.reminderDate && !app.reminderDone)
+                    .sort((a, b) => new Date(a.reminderDate!).getTime() - new Date(b.reminderDate!).getTime());
+
+                  if (upcoming.length === 0) {
+                    return (
+                      <div className="flex flex-col items-center justify-center py-16 text-center">
+                        <div className="w-14 h-14 rounded-2xl bg-primary-light flex items-center justify-center text-2xl mb-3">🔔</div>
+                        <p className="text-[13px] text-text-muted">No upcoming reminders. Add one from a card on the board!</p>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="space-y-2 max-w-2xl">
+                      {upcoming.map(app => {
+                        const isOverdue = new Date(app.reminderDate!) < new Date();
+                        return (
+                          <div
+                            key={app.id}
+                            className={`flex items-center justify-between p-4 rounded-lg border ${
+                              isOverdue
+                                ? "bg-status-rejected/5 border-status-rejected/30"
+                                : "bg-surface border-border"
+                            }`}
+                          >
+                            <div>
+                              <p className="text-[13px] font-semibold text-text">{app.company}</p>
+                              <p className="text-[11px] text-text-muted">{app.role}</p>
+                              <p className={`text-[11px] font-medium mt-1 ${
+                                isOverdue ? "text-status-rejected" : "text-status-interview"
+                              }`}>
+                                {isOverdue ? "⚠️ Overdue · " : "📅 "}
+                                {new Date(app.reminderDate!).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => handleMarkReminderDone(String(app.id))}
+                              className="ml-4 px-3 py-1.5 text-[12px] font-semibold bg-primary hover:bg-primary-hover text-white rounded-md transition-colors cursor-pointer whitespace-nowrap"
+                            >
+                              Mark Done
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
               </div>
             </>
           )}

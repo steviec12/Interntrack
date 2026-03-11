@@ -1,6 +1,7 @@
 import type { Application } from "../../types";
 import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
+import { useState } from "react";
 
 /** Status → TailwindCSS color class mapping */
 export const STATUS_STYLES: Record<string, { bg: string; text: string }> = {
@@ -15,10 +16,12 @@ export const STATUS_STYLES: Record<string, { bg: string; text: string }> = {
 interface ApplicationCardProps {
     app: Application;
     onClick: () => void;
+    onSetReminder?: (appId: string, date: string | null) => void;
 }
 
-export default function ApplicationCard({ app, onClick }: ApplicationCardProps) {
+export default function ApplicationCard({ app, onClick, onSetReminder }: ApplicationCardProps) {
     const style = STATUS_STYLES[app.status] ?? STATUS_STYLES.Saved;
+    const [showDateInput, setShowDateInput] = useState(false);
 
     // Urgency indicator: rolling deadline apps still in Saved status
     const isUrgent = app.isRolling && app.status === "Saved";
@@ -109,6 +112,40 @@ export default function ApplicationCard({ app, onClick }: ApplicationCardProps) 
                     )}
                 </div>
             )}
+
+            {/* Reminder row */}
+            <div className="mt-2 pt-2 border-t border-border/50">
+                {app.reminderDate && !app.reminderDone ? (
+                    <p className={`text-[10px] font-medium flex items-center gap-1 ${
+                        new Date(app.reminderDate) < new Date() ? "text-status-rejected" : "text-status-interview"
+                    }`}>
+                        <span>🔔</span>
+                        {new Date(app.reminderDate).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}
+                    </p>
+                ) : !app.reminderDone && showDateInput ? (
+                    <input
+                        type="date"
+                        autoFocus
+                        className="w-full h-7 px-2 text-[11px] border border-primary rounded text-text bg-surface focus:outline-none"
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => {
+                            if (e.target.value && onSetReminder) {
+                                onSetReminder(String(app.id), new Date(e.target.value).toISOString());
+                                setShowDateInput(false);
+                            }
+                        }}
+                        onBlur={() => setShowDateInput(false)}
+                    />
+                ) : !app.reminderDone ? (
+                    <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setShowDateInput(true); }}
+                        className="text-[10px] text-text-muted hover:text-primary flex items-center gap-1 transition-colors"
+                    >
+                        <span>🔔</span> Add Reminder
+                    </button>
+                ) : null}
+            </div>
         </div>
     );
 }
