@@ -1,6 +1,6 @@
 :root {
-  --primary-color: #2563eb;
-  --primary-hover: #1d4ed8;
+  --primary-color: #e8604c;
+  --primary-hover: #d4503e;
   --bg-color: #ffffff;
   --text-color: #1f2937;
   --border-color: #e5e7eb;
@@ -43,13 +43,14 @@ header h1 {
 }
 
 /* Loading State */
-#loading-state, #login-prompt {
+#loading-state,
+#login-prompt {
   padding: 32px 16px;
   text-align: center;
 }
 
 .spinner {
-  border: 3px solid rgba(0,0,0,0.1);
+  border: 3px solid rgba(0, 0, 0, 0.1);
   width: 24px;
   height: 24px;
   border-radius: 50%;
@@ -59,8 +60,13 @@ header h1 {
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 /* Form Styles */
@@ -101,7 +107,8 @@ select {
   transition: border-color 0.2s;
 }
 
-input:focus, select:focus {
+input:focus,
+select:focus {
   outline: none;
   border-color: var(--primary-color);
   box-shadow: 0 0 0 1px var(--primary-color);
