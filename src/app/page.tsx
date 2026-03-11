@@ -1,8 +1,9 @@
 "use client";
 import React, { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import NavBar from "../components/Layout/NavBar";
 import ApplicationForm from "../components/Forms/ApplicationForm";
-import type { Application, ApplicationStatus } from "../types";
+import type { Application } from "../types";
 import { applicationService } from "../services/applicationService";
 import { toast } from "sonner";
 import BoardColumn from "../components/Board/BoardColumn";
@@ -47,6 +48,7 @@ const BACKEND_TYPE_TO_FRONTEND: Record<string, string> = {
 };
 
 export default function Home() {
+  const { status } = useSession();
   const [showForm, setShowForm] = useState(false);
   const [selectedApp, setSelectedApp] = useState<Application | null>(null);
   const [applications, setApplications] = useState<Application[]>([]);
@@ -55,8 +57,6 @@ export default function Home() {
   const [seasonFilter, setSeasonFilter] = useState("All");
   const [activeDragId, setActiveDragId] = useState<string | number | null>(null);
   const [rejectionModalApp, setRejectionModalApp] = useState<Application | null>(null);
-
-  const [isLoading, setIsLoading] = useState(true);
 
   // Configure drag sensors. 
   // Required so a quick "click" triggers the edit modal, but a long "hold" triggers a drag.
@@ -158,8 +158,17 @@ export default function Home() {
     }
   };
 
-  // Fetch initial data from the API securely on mount
+  // Fetch applications only when an authenticated session is available.
   useEffect(() => {
+    if (status === "loading") return;
+
+    if (status !== "authenticated") {
+      setApplications([]);
+      return;
+    }
+
+    let isActive = true;
+
     const fetchApps = async () => {
       try {
         const fetched = await applicationService.getApplications();
@@ -178,15 +187,22 @@ export default function Home() {
           deadlineType: app.deadlineType ?? undefined,
         })) as unknown as Application[];
 
-        setApplications(formatted);
-      } catch (error) {
-        toast.error("Failed to fetch applications from server.");
-      } finally {
-        setIsLoading(false);
+        if (isActive) {
+          setApplications(formatted);
+        }
+      } catch {
+        if (isActive) {
+          toast.error("Failed to fetch applications from server.");
+        }
       }
     };
+
     fetchApps();
-  }, []);
+
+    return () => {
+      isActive = false;
+    };
+  }, [status]);
 
   const handleSave = (app: Application) => {
     // Reverse-map backend enum values to frontend display labels
