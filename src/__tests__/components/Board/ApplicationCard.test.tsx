@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import ApplicationCard, { STATUS_STYLES } from "../../../components/Board/ApplicationCard";
 import type { Application } from "../../../types";
@@ -7,7 +7,6 @@ import { DndContext } from "@dnd-kit/core";
 // Mock Data
 const mockApp: Application = {
     id: "uuid-1234",
-    userId: "user-1",
     company: "Meta",
     role: "Software Engineer",
     status: "Interview",
@@ -67,7 +66,6 @@ describe("ApplicationCard", () => {
     it("handles missing optional tags securely", () => {
         const minimalApp: Application = {
             id: "uuid-456",
-            userId: "user-1",
             company: "Google",
             role: "Janitor",
             status: "Saved",
@@ -90,7 +88,6 @@ describe("ApplicationCard", () => {
     it("shows urgency indicator for rolling apps in Saved status", () => {
         const urgentApp: Application = {
             id: "uuid-urgent",
-            userId: "user-1",
             company: "Netflix",
             role: "Backend Engineer",
             status: "Saved",
@@ -131,22 +128,76 @@ describe("ApplicationCard", () => {
         expect(screen.getByText(/Deadline · Feb 1/)).toBeInTheDocument();
     });
 
-    it("shows Add Deadline button when no deadline is set", () => {
-        const appNoDeadline: Application = {
-            id: "uuid-nd",
-            userId: "user-1",
-            company: "Amazon",
-            role: "SDE Intern",
-            status: "Saved",
-            type: "Internship",
-        };
-
+    it("open deadline input", () => {
+        const handleSetDeadline = vi.fn();
         render(
             <DndContext>
-                <ApplicationCard app={appNoDeadline} onClick={() => { }} />
+                <ApplicationCard
+                    app={mockApp}
+                    onClick={() => {}}
+                    onSetDeadline={handleSetDeadline}
+                />
             </DndContext>
         );
 
-        expect(screen.getByText(/Add Deadline/)).toBeInTheDocument();
+        // Click on the existing deadline paragraph to enter edit mode
+        const existingDeadline = screen.getByText(/Deadline · Feb 1/);
+        fireEvent.click(existingDeadline);
+
+        // Input shows up
+        expect(screen.getByDisplayValue("Select type...")).toBeInTheDocument();
+        const dateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
+        expect(dateInput).toBeInTheDocument();
+    });
+
+    it("can click Add Reminder, pick date, and auto-save", () => {
+        const handleSetReminder = vi.fn();
+        render(
+            <DndContext>
+                <ApplicationCard
+                    app={mockApp} // No reminder initially
+                    onClick={() => {}}
+                    onSetReminder={handleSetReminder}
+                />
+            </DndContext>
+        );
+
+        const addReminderBtn = screen.getByText(/Add Reminder/);
+        fireEvent.click(addReminderBtn);
+
+        const dateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
+        expect(dateInput).toBeInTheDocument();
+        fireEvent.change(dateInput, { target: { value: "2024-05-10" } });
+
+        expect(handleSetReminder).toHaveBeenCalledWith("uuid-1234", new Date("2024-05-10").toISOString());
+    });
+
+    it("can click an existing reminder to edit it", () => {
+        const appWithReminder: Application = {
+            ...mockApp,
+            reminderDate: "2024-04-01T00:00:00Z",
+            reminderDone: false,
+        };
+        const handleSetReminder = vi.fn();
+        
+        render(
+            <DndContext>
+                <ApplicationCard
+                    app={appWithReminder}
+                    onClick={() => {}}
+                    onSetReminder={handleSetReminder}
+                />
+            </DndContext>
+        );
+
+        const existingReminder = screen.getByText(/Apr 1|Apr 01/i); // Matches different localized shorts
+        fireEvent.click(existingReminder);
+
+        const dateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
+        expect(dateInput).toBeInTheDocument();
+        
+        // Blur to cancel out
+        fireEvent.blur(dateInput);
+        expect(document.querySelector('input[type="date"]')).not.toBeInTheDocument();
     });
 });
