@@ -7,5 +7,12 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./vitest.setup.ts'],
     globals: true,
+    exclude: [
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/.{idea,git,cache,output,temp}/**',
+      '**/{karma,rollup,webpack,vite,vitest,jest,ava,babel,nyc,cypress,tsup,build,eslint,prettier}.config.*',
+      'tests/**', // Exclude Playwright E2E tests
+    ],
   },
 });

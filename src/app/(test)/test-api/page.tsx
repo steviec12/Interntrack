@@ -25,6 +25,9 @@ export default function TestFetcher() {
                 notes: "Just testing the API",
                 rejectionReason: null,
                 reflectionNote: null,
+                reminderDate: null,
+                reminderDone: false,
+                deadlineType: null,
             };
 
             const response = await applicationService.createApplication(payload);
