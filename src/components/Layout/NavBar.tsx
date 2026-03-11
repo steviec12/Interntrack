@@ -64,14 +64,16 @@ export default function NavBar({
                 {/* Right Section: Filters + Add Button + Avatar */}
                 <div className="flex items-center gap-4">
                     {/* Type Segmented Control */}
-                    <div className="flex items-center border border-border rounded-lg overflow-hidden">
+                    <div className={`flex items-center rounded-lg overflow-hidden transition-all ${
+                        typeFilter !== "All" ? "border-2 border-primary shadow-sm" : "border border-border"
+                    }`}>
                         {TYPE_FILTERS.map((type) => (
                             <button
                                 key={type}
                                 onClick={() => onTypeFilterChange(type)}
-                                className={`px-3 py-1.5 text-[12px] font-medium transition-colors cursor-pointer ${typeFilter === type
+                                className={`px-3 py-1.5 text-[12px] font-medium transition-colors cursor-pointer border-r last:border-r-0 border-border/50 ${typeFilter === type
                                     ? "bg-primary text-white"
-                                    : "bg-surface text-text-muted hover:bg-primary-light"
+                                    : "bg-surface text-text-muted hover:bg-primary-light hover:text-primary"
                                     }`}
                             >
                                 {type}
@@ -80,17 +82,29 @@ export default function NavBar({
                     </div>
 
                     {/* Season Dropdown */}
-                    <select
-                        value={seasonFilter}
-                        onChange={(e) => onSeasonFilterChange(e.target.value)}
-                        className="h-8 px-3 text-[12px] font-medium text-text-muted bg-surface border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary cursor-pointer"
-                    >
-                        {SEASON_OPTIONS.map((s) => (
-                            <option key={s} value={s}>
-                                {s}
-                            </option>
-                        ))}
-                    </select>
+                    <div className="relative group">
+                        <select
+                            value={seasonFilter}
+                            onChange={(e) => onSeasonFilterChange(e.target.value)}
+                            className={`appearance-none h-[30px] pl-3 pr-8 text-[12px] font-medium transition-all cursor-pointer rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 ${
+                                seasonFilter !== "All"
+                                    ? "bg-primary/5 text-primary border-2 border-primary shadow-sm font-semibold"
+                                    : "bg-surface text-text-muted border border-border hover:border-text-muted/30"
+                            }`}
+                        >
+                            {SEASON_OPTIONS.map((s) => (
+                                <option key={s} value={s} className="text-text font-normal">
+                                    {s === "All" ? "All Seasons" : s}
+                                </option>
+                            ))}
+                        </select>
+                        {/* Custom SVG Chevron pointing down */}
+                        <div className={`absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none transition-colors ${seasonFilter !== "All" ? "text-primary" : "text-text-muted group-hover:text-text"}`}>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                        </div>
+                    </div>
 
                     {status === "authenticated" ? (
                         <>

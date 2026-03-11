@@ -491,7 +491,7 @@ export default function Home() {
 
                       const thisWeekItems: DashboardItem[] = [];
 
-                      applications.forEach(app => {
+                      filteredApps.forEach(app => {
                         // Check deadlines
                         if (app.deadline) {
                           const dlDate = new Date(app.deadline);
