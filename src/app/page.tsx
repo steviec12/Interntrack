@@ -381,50 +381,126 @@ export default function Home() {
 
               {/* Dashboard View */}
               <div style={{ display: activeTab === "Dashboard" ? "block" : "none" }} className="py-6">
-                <h2 className="text-base font-semibold text-text mb-4">🔔 Upcoming Reminders</h2>
+                <h2 className="text-base font-semibold text-text mb-4">📅 This Week</h2>
                 {(() => {
-                  const upcoming = applications
-                    .filter(app => app.reminderDate && !app.reminderDone)
-                    .sort((a, b) => new Date(a.reminderDate!).getTime() - new Date(b.reminderDate!).getTime());
+                  const now = new Date();
+                  now.setHours(0, 0, 0, 0);
 
-                  if (upcoming.length === 0) {
+                  const nextWeek = new Date(now);
+                  nextWeek.setDate(nextWeek.getDate() + 7);
+
+                  type DashboardItem = {
+                    key: string;
+                    app: Application;
+                    date: Date;
+                    type: "Deadline" | "Reminder";
+                    label: string;
+                  };
+
+                  const thisWeekItems: DashboardItem[] = [];
+
+                  applications.forEach(app => {
+                    // Check deadlines
+                    if (app.deadline) {
+                      const dlDate = new Date(app.deadline);
+                      dlDate.setHours(0, 0, 0, 0);
+                      if (dlDate <= nextWeek) {
+                        thisWeekItems.push({
+                          key: `dl-${app.id}`,
+                          app,
+                          date: dlDate,
+                          type: "Deadline",
+                          label: app.deadlineType ? `Deadline: ${app.deadlineType}` : "Deadline"
+                        });
+                      }
+                    }
+
+                    // Check reminders
+                    if (app.reminderDate && !app.reminderDone) {
+                      const remDate = new Date(app.reminderDate);
+                      remDate.setHours(0, 0, 0, 0);
+                      if (remDate <= nextWeek) {
+                        thisWeekItems.push({
+                          key: `rm-${app.id}`,
+                          app,
+                          date: remDate,
+                          type: "Reminder",
+                          label: "Follow-up Reminder"
+                        });
+                      }
+                    }
+                  });
+
+                  // Sort soonest first
+                  thisWeekItems.sort((a, b) => a.date.getTime() - b.date.getTime());
+
+                  if (thisWeekItems.length === 0) {
                     return (
                       <div className="flex flex-col items-center justify-center py-16 text-center">
-                        <div className="w-14 h-14 rounded-2xl bg-primary-light flex items-center justify-center text-2xl mb-3">🔔</div>
-                        <p className="text-[13px] text-text-muted">No upcoming reminders. Add one from a card on the board!</p>
+                        <div className="w-14 h-14 rounded-2xl bg-primary-light flex items-center justify-center text-2xl mb-3">✨</div>
+                        <p className="text-[13px] text-text-muted">You have a clear week ahead!</p>
+                        <p className="text-[13px] text-text-muted">Take a deep breath or apply to a new role.</p>
                       </div>
                     );
                   }
 
                   return (
                     <div className="space-y-2 max-w-2xl">
-                      {upcoming.map(app => {
-                        const isOverdue = new Date(app.reminderDate!) < new Date();
+                      {thisWeekItems.map(item => {
+                        const isOverdue = item.date < now;
+                        const isCritical = item.date.getTime() - now.getTime() <= 3 * 24 * 60 * 60 * 1000 && !isOverdue;
+                        const isSoon = item.date.getTime() - now.getTime() <= 7 * 24 * 60 * 60 * 1000 && !isCritical && !isOverdue;
+
                         return (
                           <div
-                            key={app.id}
-                            className={`flex items-center justify-between p-4 rounded-lg border ${
+                            key={item.key}
+                            onClick={() => {
+                              setSelectedApp(item.app);
+                              setShowForm(true);
+                            }}
+                            className={`flex items-center justify-between p-4 rounded-lg border group cursor-pointer transition-colors ${
                               isOverdue
-                                ? "bg-status-rejected/5 border-status-rejected/30"
-                                : "bg-surface border-border"
+                                ? "bg-status-rejected/5 border-status-rejected/30 hover:border-status-rejected/50"
+                                : isCritical
+                                ? "bg-surface border-status-rejected/30 hover:border-status-rejected/50"
+                                : isSoon
+                                ? "bg-surface border-warning/30 hover:border-warning/50"
+                                : "bg-surface border-border hover:border-text-muted/30"
                             }`}
                           >
-                            <div>
-                              <p className="text-[13px] font-semibold text-text">{app.company}</p>
-                              <p className="text-[11px] text-text-muted">{app.role}</p>
-                              <p className={`text-[11px] font-medium mt-1 ${
-                                isOverdue ? "text-status-rejected" : "text-status-interview"
-                              }`}>
-                                {isOverdue ? "⚠️ Overdue · " : "📅 "}
-                                {new Date(app.reminderDate!).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}
-                              </p>
+                            <div className="flex items-center gap-3">
+                              <div className="text-xl opacity-80">
+                                {item.type === "Deadline" ? "📅" : "🔔"}
+                              </div>
+                              <div>
+                                <p className="text-[13px] font-semibold text-text group-hover:text-primary transition-colors">
+                                  {item.app.company} <span className="text-[11px] font-normal text-text-muted mx-1">•</span> <span className="text-[12px] font-normal text-text-muted">{item.app.role}</span>
+                                </p>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <p className={`text-[11px] font-medium ${
+                                    isOverdue ? "text-status-rejected" : isCritical ? "text-status-rejected" : isSoon ? "text-warning" : "text-status-interview"
+                                  }`}>
+                                    {isOverdue ? "⚠️ Overdue · " : ""}
+                                    {item.date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}
+                                  </p>
+                                  <span className="text-[10px] text-text-muted px-1.5 py-0.5 rounded bg-background border border-border">
+                                    {item.label}
+                                  </span>
+                                </div>
+                              </div>
                             </div>
-                            <button
-                              onClick={() => handleMarkReminderDone(String(app.id))}
-                              className="ml-4 px-3 py-1.5 text-[12px] font-semibold bg-primary hover:bg-primary-hover text-white rounded-md transition-colors cursor-pointer whitespace-nowrap"
-                            >
-                              Mark Done
-                            </button>
+                            
+                            {item.type === "Reminder" && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation(); // prevent opening form
+                                  handleMarkReminderDone(String(item.app.id));
+                                }}
+                                className="ml-4 px-3 py-1.5 text-[12px] font-semibold bg-background hover:bg-primary hover:border-primary border border-border hover:text-white text-text-muted rounded-md transition-colors whitespace-nowrap"
+                              >
+                                Mark Done
+                              </button>
+                            )}
                           </div>
                         );
                       })}
