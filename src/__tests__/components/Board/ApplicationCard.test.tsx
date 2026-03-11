@@ -120,13 +120,33 @@ describe("ApplicationCard", () => {
         expect(screen.queryByText("Apply soon")).not.toBeInTheDocument();
     });
 
-    it("renders deadline badge with formatted date", () => {
+    it("renders deadline in the inline deadline row", () => {
         render(
             <DndContext>
                 <ApplicationCard app={mockApp} onClick={() => { }} />
             </DndContext>
         );
 
-        expect(screen.getByText(/Due/)).toHaveTextContent("Feb 1, 2024");
+        // The deadline row now shows "Deadline · Feb 1" (no deadlineType on mockApp)
+        expect(screen.getByText(/Deadline · Feb 1/)).toBeInTheDocument();
+    });
+
+    it("shows Add Deadline button when no deadline is set", () => {
+        const appNoDeadline: Application = {
+            id: "uuid-nd",
+            userId: "user-1",
+            company: "Amazon",
+            role: "SDE Intern",
+            status: "Saved",
+            type: "Internship",
+        };
+
+        render(
+            <DndContext>
+                <ApplicationCard app={appNoDeadline} onClick={() => { }} />
+            </DndContext>
+        );
+
+        expect(screen.getByText(/Add Deadline/)).toBeInTheDocument();
     });
 });

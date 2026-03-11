@@ -34,6 +34,7 @@ model Application {
   status          ApplicationStatus @default(Saved)
   type            ApplicationType   @default(Internship)
   deadline        DateTime?
+  deadlineType    String?
   reminderDate    DateTime?
   reminderDone    Boolean           @default(false)
   user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
