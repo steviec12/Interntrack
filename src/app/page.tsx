@@ -174,6 +174,7 @@ export default function Home() {
           reflectionNote: app.reflectionNote ?? undefined,
           reminderDate: app.reminderDate ?? undefined,
           reminderDone: app.reminderDone ?? false,
+          deadlineType: app.deadlineType ?? undefined,
         })) as unknown as Application[];
 
         setApplications(formatted);
@@ -231,6 +232,20 @@ export default function Home() {
       toast.success("Reminder marked as done!");
     } catch {
       toast.error("Failed to mark reminder as done.");
+    }
+  };
+
+  const handleSetDeadline = async (appId: string, date: string, type: string) => {
+    try {
+      await applicationService.updateApplication(appId, { deadline: date, deadlineType: type } as any);
+      setApplications(prev => prev.map(app =>
+        String(app.id) === appId
+          ? { ...app, deadline: date, deadlineType: type }
+          : app
+      ));
+      toast.success("Deadline set!");
+    } catch {
+      toast.error("Failed to set deadline.");
     }
   };
 
@@ -337,6 +352,7 @@ export default function Home() {
                             setShowForm(true);
                           }}
                           onSetReminder={handleSetReminder}
+                          onSetDeadline={handleSetDeadline}
                         />
                       );
                     })}

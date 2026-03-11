@@ -17,11 +17,37 @@ interface ApplicationCardProps {
     app: Application;
     onClick: () => void;
     onSetReminder?: (appId: string, date: string | null) => void;
+    onSetDeadline?: (appId: string, date: string, type: string) => void;
 }
 
-export default function ApplicationCard({ app, onClick, onSetReminder }: ApplicationCardProps) {
+const DEADLINE_TYPES = [
+    "Application Submission",
+    "Interview",
+    "Assessment / OA",
+    "Offer Decision",
+    "Other",
+];
+
+export default function ApplicationCard({ app, onClick, onSetReminder, onSetDeadline }: ApplicationCardProps) {
     const style = STATUS_STYLES[app.status] ?? STATUS_STYLES.Saved;
     const [showDateInput, setShowDateInput] = useState(false);
+    const [showDeadlineInput, setShowDeadlineInput] = useState(false);
+    const [pendingDeadlineDate, setPendingDeadlineDate] = useState("");
+    const [pendingDeadlineType, setPendingDeadlineType] = useState("");
+
+    // Compute deadline urgency
+    const deadlineUrgency = (() => {
+        if (!app.deadline) return "none";
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+        const dl = new Date(app.deadline);
+        dl.setHours(0, 0, 0, 0);
+        const days = Math.ceil((dl.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        if (days < 0) return "expired";
+        if (days <= 3) return "critical";
+        if (days <= 7) return "soon";
+        return "ok";
+    })();
 
     // Urgency indicator: rolling deadline apps still in Saved status
     const isUrgent = app.isRolling && app.status === "Saved";
@@ -37,6 +63,16 @@ export default function ApplicationCard({ app, onClick, onSetReminder }: Applica
         transform: CSS.Translate.toString(transform),
     };
 
+    // Urgency border class based on deadline proximity
+    const urgencyBorderClass =
+        deadlineUrgency === "expired" || deadlineUrgency === "critical"
+            ? "border-status-rejected border-[1.5px]"
+            : deadlineUrgency === "soon"
+            ? "border-warning border-[1.5px]"
+            : isUrgent
+            ? "border-l-[3px] border-l-warning"
+            : "border-border";
+
     return (
         <div
             ref={setNodeRef}
@@ -44,8 +80,7 @@ export default function ApplicationCard({ app, onClick, onSetReminder }: Applica
             {...listeners}
             {...attributes}
             onClick={onClick}
-            className={`bg-surface border rounded-lg p-3.5 shadow-[var(--shadow-card)] transition-all duration-150 cursor-grab active:cursor-grabbing ${isUrgent ? "border-l-[3px] border-l-warning" : ""} ${isDragging ? "opacity-50 border-primary scale-[1.02] shadow-xl z-50" : "border-border hover:shadow-[var(--shadow-card-hover)]"
-                }`}
+            className={`bg-surface rounded-lg p-3.5 shadow-[var(--shadow-card)] transition-all duration-150 cursor-grab active:cursor-grabbing ${urgencyBorderClass} ${isDragging ? "opacity-50 border-primary scale-[1.02] shadow-xl z-50" : "hover:shadow-[var(--shadow-card-hover)]"}`}
         >
             <p className="text-[14px] font-semibold text-text leading-snug">
                 {app.company}
@@ -80,9 +115,19 @@ export default function ApplicationCard({ app, onClick, onSetReminder }: Applica
                     </span>
                 )}
 
-                {app.deadline && (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-warning/[0.13] text-warning">
-                        Due {new Date(app.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}
+                {/* Deadline urgency badge (replaces plain "Due" badge) */}
+                {app.deadline && deadlineUrgency !== "none" && (
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold ${
+                        deadlineUrgency === "expired"
+                            ? "bg-status-rejected/[0.15] text-status-rejected"
+                            : deadlineUrgency === "critical"
+                            ? "bg-status-rejected/[0.15] text-status-rejected"
+                            : deadlineUrgency === "soon"
+                            ? "bg-warning/[0.15] text-warning"
+                            : "bg-warning/[0.13] text-warning"
+                    }`}>
+                        {deadlineUrgency === "expired" ? "⚠️ Expired" : deadlineUrgency === "critical" ? "🔴" : "🟡"}
+                        {" "}{app.deadlineType ?? "Deadline"}
                     </span>
                 )}
 
@@ -112,6 +157,68 @@ export default function ApplicationCard({ app, onClick, onSetReminder }: Applica
                     )}
                 </div>
             )}
+
+            {/* Deadline row — inline setter */}
+            <div className="mt-2 pt-2 border-t border-border/50">
+                {app.deadline ? (
+                    <p className={`text-[10px] font-medium flex items-center gap-1 ${
+                        deadlineUrgency === "expired" || deadlineUrgency === "critical"
+                            ? "text-status-rejected"
+                            : deadlineUrgency === "soon"
+                            ? "text-warning"
+                            : "text-text-muted"
+                    }`}>
+                        <span>📅</span>
+                        <span>{app.deadlineType ?? "Deadline"} · {new Date(app.deadline).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}</span>
+                    </p>
+                ) : showDeadlineInput ? (
+                    <div onClick={(e) => e.stopPropagation()} className="space-y-1.5">
+                        <select
+                            autoFocus
+                            value={pendingDeadlineType}
+                            onChange={(e) => setPendingDeadlineType(e.target.value)}
+                            className="w-full h-7 px-2 text-[11px] border border-primary rounded text-text bg-surface focus:outline-none"
+                        >
+                            <option value="">Select type...</option>
+                            {DEADLINE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                        </select>
+                        <input
+                            type="date"
+                            value={pendingDeadlineDate}
+                            onChange={(e) => setPendingDeadlineDate(e.target.value)}
+                            className="w-full h-7 px-2 text-[11px] border border-primary rounded text-text bg-surface focus:outline-none"
+                        />
+                        <div className="flex gap-1 justify-end">
+                            <button
+                                type="button"
+                                onClick={() => { setShowDeadlineInput(false); setPendingDeadlineDate(""); setPendingDeadlineType(""); }}
+                                className="text-[10px] text-text-muted hover:text-text px-2 py-0.5"
+                            >Cancel</button>
+                            <button
+                                type="button"
+                                disabled={!pendingDeadlineDate || !pendingDeadlineType}
+                                onClick={() => {
+                                    if (pendingDeadlineDate && pendingDeadlineType && onSetDeadline) {
+                                        onSetDeadline(String(app.id), new Date(pendingDeadlineDate).toISOString(), pendingDeadlineType);
+                                        setShowDeadlineInput(false);
+                                        setPendingDeadlineDate("");
+                                        setPendingDeadlineType("");
+                                    }
+                                }}
+                                className="text-[10px] font-semibold text-white bg-primary px-2 py-0.5 rounded disabled:opacity-40"
+                            >Save</button>
+                        </div>
+                    </div>
+                ) : (
+                    <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setShowDeadlineInput(true); }}
+                        className="text-[10px] text-text-muted hover:text-primary flex items-center gap-1 transition-colors"
+                    >
+                        <span>📅</span> Add Deadline
+                    </button>
+                )}
+            </div>
 
             {/* Reminder row */}
             <div className="mt-2 pt-2 border-t border-border/50">

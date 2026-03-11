@@ -13,6 +13,7 @@ export interface Application {
     type: ApplicationType;
     season?: string;
     deadline?: string;
+    deadlineType?: string;
     isRolling?: boolean;
     notes?: string;
     rejectionReason?: string;

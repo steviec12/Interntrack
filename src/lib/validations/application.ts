@@ -30,6 +30,7 @@ export const applicationUpdateSchema = z.object({
     type: ApplicationTypeEnum.optional(),
     season: z.string().optional().nullable(),
     deadline: z.string().datetime().optional().nullable(),
+    deadlineType: z.string().optional().nullable(),
     isRolling: z.boolean().optional(),
     dateApplied: z.string().datetime().optional().nullable(),
     notes: z.string().optional().nullable(),
