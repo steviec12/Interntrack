@@ -4,7 +4,7 @@
 
 - Project name: InternTrack
 - Repository: https://github.com/steviec12/Interntrack
-- Production URL: add your final Vercel production URL here before Canvas submission
+- Production URL: https://interntrack-iota.vercel.app
 
 ## What This Package Covers
 
