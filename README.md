@@ -1,6 +1,6 @@
 # InternTrack 🚀
 
-**InternTrack** is a modern, full-stack application designed to streamline and demystify the internship and full-time job search process. Built with a robust tech stack, it provides students with an intuitive Kanban board and an insightful analytics dashboard to manage applications from the first send to the final offer.
+**InternTrack** is a modern, full-stack application designed to streamline and demystify the internship and full-time job search process. Built with a robust tech stack, it provides students with an intuitive Kanban board and an insightful analytics dashboard to manage applications from the first send to the final offer. Visit at: https://interntrack-iota.vercel.app.
 
 ---
 
